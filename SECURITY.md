@@ -1,48 +1,42 @@
+
+### `SECURITY.md`
+
+```markdown
 # Security Policy
 
 ## Supported versions
 
 | Version | Supported |
 |---|---|
-| 0.0.x-alpha | Yes, during alpha development |
+| 0.0.1-beta | Yes |
+
+Older versions may not receive security fixes.
 
 ## Reporting a vulnerability
 
-Please do **not** publish API keys, VINs, access tokens, vehicle locations, or other credentials in a public GitHub issue.
+Please do not publicly disclose security vulnerabilities before they have been
+reviewed.
 
-For security-sensitive reports, use GitHub's private vulnerability reporting mechanism when available:
+For security-sensitive issues, please contact the repository maintainer
+privately through GitHub.
 
-https://github.com/janreimen/Domoticz-MySkodaAPI/security/advisories
+Repository:
 
-Repository: https://www.github.com/janreimen/Domoticz-MySkodaAPI
+https://github.com/janreimen/Domoticz-MySkodaAPI
 
-## Credentials
+Please include:
 
-The MyŠkoda API key is a vehicle credential.
+- Plugin version
+- Domoticz version
+- Python version
+- Operating system
+- Description of the vulnerability
+- Steps required to reproduce it
+- Relevant log output
 
-Never commit it to Git or GitHub and never put it into screenshots, public logs, issue reports, or example configuration files.
+**Never include your MySkoda API key in a bug report.**
 
-The plugin accepts the API key through the Domoticz hardware configuration password field and sends it as the `X-API-Key` HTTP header. The plugin does not intentionally log the API key.
+If possible, replace sensitive information with:
 
-## Vehicle data
-
-MyŠkoda API responses can contain sensitive vehicle information, including VIN, registration information and parking coordinates/address. Treat raw responses and Domoticz logs as private data.
-
-Before opening an issue, redact at least:
-
-- API keys
-- VIN
-- registration/plate number
-- latitude/longitude
-- parking address
-- personal account information
-
-## Remote commands
-
-Version `0.0.1-alpha` is read-only. It does not implement remote vehicle commands.
-
-This is intentional. Remote operations will only be considered after read-only vehicle capabilities and authorization behavior have been validated against the official API.
-
-## Dependencies
-
-Version `0.0.1-alpha` uses Python standard-library modules only and does not require third-party Python packages.
+```text
+<API_KEY>
