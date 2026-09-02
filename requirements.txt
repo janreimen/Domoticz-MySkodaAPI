@@ -1,0 +1,2 @@
+# Domoticz-MySkodaAPI 0.0.1-alpha
+# No third-party Python packages are required.

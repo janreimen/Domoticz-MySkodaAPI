@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+
+.vscode/
+.idea/
+
+*.log
+
+.env
+.env.*
+*.secret
+
+# Local Domoticz configuration
+config.local.py
+local_config.
