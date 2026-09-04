@@ -1,2 +1,2 @@
-# Domoticz-MySkodaAPI 0.0.1-alpha
-# No third-party Python packages are required.
+# No third-party Python dependencies.
+# Domoticz provides the Domoticz Python plugin API.
