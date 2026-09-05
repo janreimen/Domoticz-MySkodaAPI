@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.0.3-alpha.1"
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.0.3.5-alpha.4"
     externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
 <description>
 <h2>MySkoda API Integration</h2><br/>
@@ -29,7 +29,7 @@ import Domoticz
 
 from constants import (
     DEFAULT_POLL_MINUTES, MAX_POLL_MINUTES, MIN_POLL_MINUTES,
-    PLUGIN_VERSION, STATE_CACHE_FILENAME,
+    PLUGIN_VERSION, STATE_CACHE_FILENAME, DISTANCE_STATE_FILENAME,
 )
 from devices import DeviceManager
 from myskoda_api import MySkodaAPI
@@ -60,7 +60,15 @@ class BasePlugin:
         self.next_retry_at = 0.0
         self.cache_path = None
         self.cached_state = None
+        self.distance_state = {
+            "date": None,
+            "last_odometer": None,
+            "today_distance": 0.0,
+            "yesterday_distance": 0.0,
+        }
+        self.distance_path = None
         self.api_status = "STARTING"
+        self.data_quality = "UNKNOWN"
         self.api_rate = "Unavailable"
         self.api_key_expiry = "Unknown"
 
@@ -84,6 +92,64 @@ class BasePlugin:
         if isinstance(state_data, dict):
             self.cached_state = VehicleState.from_dict(state_data)
             self.logger.Debug("Loaded last-known-good vehicle state from cache")
+
+    def _distance_load(self):
+        if not self.distance_path:
+            return
+        data = load_json(self.distance_path, {})
+        if not isinstance(data, dict):
+            return
+        self.distance_state["date"] = safe_str(data.get("date"), None)
+        self.distance_state["last_odometer"] = data.get("last_odometer")
+        self.distance_state["today_distance"] = float(data.get("today_distance", 0.0) or 0.0)
+        self.distance_state["yesterday_distance"] = float(data.get("yesterday_distance", 0.0) or 0.0)
+
+    def _distance_save(self):
+        if not self.distance_path:
+            return
+        save_json_atomic(self.distance_path, self.distance_state)
+
+    def _update_distance_delta(self, odometer):
+        """Accumulate positive odometer deltas by local calendar day.
+
+        A restart does not create a delta because last_odometer is persisted.
+        Negative jumps are ignored as invalid/reset readings.
+        """
+        if odometer is None:
+            return self.distance_state["today_distance"], self.distance_state["yesterday_distance"]
+
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        try:
+            odo = float(odometer)
+        except (TypeError, ValueError):
+            return self.distance_state["today_distance"], self.distance_state["yesterday_distance"]
+
+        stored_date = self.distance_state.get("date")
+        last = self.distance_state.get("last_odometer")
+
+        if stored_date != today:
+            if stored_date is not None:
+                self.distance_state["yesterday_distance"] = max(0.0, float(self.distance_state.get("today_distance", 0.0)))
+            self.distance_state["date"] = today
+            self.distance_state["today_distance"] = 0.0
+            last = None
+
+        if last is not None:
+            try:
+                delta = odo - float(last)
+                if 0.0 <= delta <= 1000.0:
+                    self.distance_state["today_distance"] += delta
+                elif delta < 0:
+                    self.logger.Debug("Ignoring negative odometer delta: {:.3f} km".format(delta))
+                else:
+                    self.logger.Debug("Ignoring implausibly large odometer delta: {:.3f} km".format(delta))
+            except (TypeError, ValueError):
+                pass
+
+        self.distance_state["last_odometer"] = odo
+        self._distance_save()
+        return self.distance_state["today_distance"], self.distance_state["yesterday_distance"]
 
     def _cache_save(self, state):
         if not self.cache_path:
@@ -135,8 +201,9 @@ class BasePlugin:
         if not result.ok:
             self._set_failure(result)
             self.logger.Error("MySkoda API: {}".format(result.error))
+            self.data_quality = "STALE" if self.cached_state is not None else "ERROR"
             if self.devices:
-                self.devices.update_api_only(self.api_status, self.api_rate)
+                self.devices.update_api_only(self.api_status, self.api_rate, self.data_quality, self.cached_state)
             return
 
         try:
@@ -145,18 +212,26 @@ class BasePlugin:
                 state.vin = self.api.vin
             self.cached_state = state
             self._cache_save(state)
+            today_distance, yesterday_distance = self._update_distance_delta(state.odometer)
             self.last_success = now
             self.failure_count = 0
             self.next_retry_at = 0.0
             self.api_status = "OK"
-            self.devices.update(state, self.api_status, self.api_rate, self.api_key_expiry)
+            self.data_quality = "GOOD"
+            self.devices.update(
+                state, self.api_status, self.api_rate, self.api_key_expiry,
+                today_distance=today_distance,
+                yesterday_distance=yesterday_distance,
+                data_quality=self.data_quality,
+            )
             self.logger.Log("MySkoda API update successful")
         except Exception as exc:
             self.failure_count += 1
             self.api_status = "INVALID_DATA"
             self.next_retry_at = time.time() + min(self.poll_minutes * 60.0, 3600.0)
             self.logger.Error("Could not parse MySkoda API response: {}".format(exc))
-            self.devices.update_api_only(self.api_status, self.api_rate)
+            self.data_quality = "STALE" if self.cached_state is not None else "ERROR"
+            self.devices.update_api_only(self.api_status, self.api_rate, self.data_quality, self.cached_state)
 
     def onStart(self):
         try:
@@ -168,8 +243,11 @@ class BasePlugin:
         self.logger.Log("Starting MySkoda API Integration {}".format(PLUGIN_VERSION))
         self.devices = DeviceManager(self.logger, Devices)
         self.devices.ensure_devices()
-        self.cache_path = os.path.join(Parameters.get("HomeFolder", "."), STATE_CACHE_FILENAME)
+        home = Parameters.get("HomeFolder", ".")
+        self.cache_path = os.path.join(home, STATE_CACHE_FILENAME)
+        self.distance_path = os.path.join(home, DISTANCE_STATE_FILENAME)
         self._cache_load()
+        self._distance_load()
         self.api = MySkodaAPI(api_key, vin, self.logger)
         self._poll()
 

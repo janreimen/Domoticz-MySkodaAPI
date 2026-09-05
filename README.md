@@ -1,12 +1,12 @@
 # MySkoda API Integration for Domoticz
 
-**Version: 0.0.3-alpha.1**
+**Version: 0.0.3.5-alpha.4**
 
 A read-only Domoticz Python plugin using the official Škoda MySkoda Public API directly.
 
 Repository: https://github.com/janreimen/Domoticz-MySkodaAPI
 
-## 0.0.3-alpha.1
+## 0.0.3.5-alpha.1
 
 This release builds on the 0.0.2-alpha architecture/refactor and concentrates on reliability:
 
@@ -59,7 +59,7 @@ sudo systemctl restart domoticz
 - Poll Interval: 15–60 minutes; default 30
 - Debug: Off / Basic / Verbose
 
-The plugin remains read-only in 0.0.3-alpha.1. It does not send commands to the vehicle.
+The plugin remains read-only in 0.0.3.5-alpha.1. It does not send commands to the vehicle.
 
 ## State cache
 
@@ -100,3 +100,25 @@ The following unit numbers remain unchanged from earlier versions:
 Never paste the API key into an issue, log, screenshot, Git repository, or public configuration file.
 
 See `SECURITY.md` for reporting security issues.
+
+
+## Daily distance counters (0.0.3.5-alpha.1)
+
+The plugin keeps a persistent odometer baseline and calculates positive odometer deltas between successful API readings. It exposes:
+
+- **Odometer** — custom Domoticz distance counter in km.
+- **Today Distance** — accumulated driven distance for the current local calendar day.
+- **Yesterday Distance** — the completed previous day's accumulated distance.
+
+The baseline is stored in `myskoda_distance_state.json` in the Domoticz plugin HomeFolder. Plugin restarts do not reset the current day's distance. Negative or implausibly large odometer jumps are ignored.
+
+
+## Smart states (0.0.3.5-alpha.4)
+
+The plugin exposes semantic, read-only state sensors. These are intentionally Text devices so dashboard clicks cannot become vehicle commands.
+
+- **Vehicle Security:** `SECURE`, `ATTENTION`, `UNKNOWN`
+- **Climate State:** `OFF`, `CLIMATE`, `HEATING`, `VENTILATION`, `UNKNOWN`
+- **Data Quality:** `GOOD`, `STALE`, `ERROR`, `UNKNOWN`
+
+When the API temporarily fails, the last-known-good vehicle state is retained and Data Quality changes to `STALE`. The plugin does not replace valid vehicle values with `UNKNOWN` merely because a polling request failed.

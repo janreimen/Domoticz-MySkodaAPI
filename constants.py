@@ -1,4 +1,4 @@
-PLUGIN_VERSION = "0.0.3-alpha.1"
+PLUGIN_VERSION = "0.0.3.5-alpha.4"
 PLUGIN_KEY = "MySkodaAPI"
 PLUGIN_NAME = "MySkoda API Integration"
 PLUGIN_URL = "https://github.com/janreimen/Domoticz-MySkodaAPI"
@@ -41,6 +41,11 @@ UNITS = {
     "api_key_expiry": 21,
     "api_rate_limit": 22,
     "api_status": 23,
+    "today_distance": 24,
+    "yesterday_distance": 25,
+    "vehicle_security": 26,
+    "climate_state": 27,
+    "data_quality": 28,
 }
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -49,3 +54,4 @@ INITIAL_BACKOFF = 2.0
 MAX_BACKOFF = 60.0
 
 STATE_CACHE_FILENAME = "myskoda_last_state.json"
+DISTANCE_STATE_FILENAME = "myskoda_distance_state.json"
