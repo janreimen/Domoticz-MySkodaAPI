@@ -1,0 +1,55 @@
+{
+  "saved_at": "2026-09-05T17:22:07Z",
+  "state": {
+    "active_ventilation": "Unknown",
+    "air_conditioning": "Unknown",
+    "api_errors": [
+      {
+        "description": "Charging status is not supported by the vehicle.",
+        "type": "CHARGING_UNSUPPORTED"
+      },
+      {
+        "description": "Air conditioning information is not supported by the vehicle.",
+        "type": "AIR_CONDITIONING_UNSUPPORTED"
+      },
+      {
+        "description": "Active ventilation information is not supported by the vehicle.",
+        "type": "ACTIVE_VENTILATION_UNSUPPORTED"
+      }
+    ],
+    "auxiliary_heating": "OFF",
+    "battery_soc": null,
+    "bonnet": "CLOSED",
+    "captured_at": "2026-09-05T17:14:45Z",
+    "charge_mode": "Unknown",
+    "charge_target": null,
+    "charging_captured_at": "",
+    "charging_connected": null,
+    "charging_state": "Unknown",
+    "doors": "CLOSED",
+    "doors_locked": true,
+    "electric_range": null,
+    "fuel_captured_at": "2026-09-05T17:14:45Z",
+    "fuel_level": 100.0,
+    "fuel_range": 640.0,
+    "fuel_type": "GASOLINE",
+    "license_plate": "BS7500",
+    "lights": "OFF",
+    "name": "Jan's Octavia RS",
+    "odometer": 7232.0,
+    "odometer_captured_at": "2026-09-05T17:14:45Z",
+    "parking_address": "Rue Joseph Probst 3, 6148 Junglinster, Luxembourg",
+    "parking_latitude": 49.714432,
+    "parking_longitude": 6.247095,
+    "parking_state": "PARKED",
+    "sunroof": "CLOSED",
+    "supported_operations": [],
+    "target_temperature": 21.0,
+    "total_range": 640.0,
+    "trunk": "CLOSED",
+    "vehicle_state": "Unknown",
+    "vin": "TMBJV0NX0TY076609",
+    "windows": "CLOSED"
+  },
+  "version": "0.4.0-alpha.3"
+}
