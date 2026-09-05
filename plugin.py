@@ -1,155 +1,185 @@
 #!/usr/bin/env python3
-"""
-<plugin
-    key="MySkodaAPI"
-    name="MySkoda API Integration"
-    author="Jan Reimen"
-    version="0.0.2-alpha"
-    externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
-    <description>
-        MyŠkoda Public API integration for Domoticz.
 
-        Architecture-refactored alpha release. Read-only integration;
-        remote vehicle commands are intentionally not implemented yet.
-    </description>
-    <params>
-        <param field="Username" label="Vehicle VIN" width="350px">
-            <description>Vehicle VIN</description>
-        </param>
-        <param field="Password" label="MyŠkoda API Key" password="true" width="350px">
-            <description>API key created in the MyŠkoda application</description>
-        </param>
-        <param field="Mode1" label="Poll interval" width="100px">
-            <options>
-                <option label="15 minutes" value="15"/>
-                <option label="30 minutes" value="30" default="true"/>
-                <option label="60 minutes" value="60"/>
-            </options>
-        </param>
-        <param field="Mode2" label="Debug" width="100px">
-            <options>
-                <option label="Normal" value="0" default="true"/>
-                <option label="Debug" value="1"/>
-            </options>
-        </param>
-    </params>
+"""
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.0.3-alpha"
+    externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
+<description>
+<h2>MySkoda API Integration</h2><br/>
+Read-only integration with the official Škoda MySkoda Public API.<br/>
+API key and VIN are stored in the Domoticz hardware configuration.<br/>
+</description>
+<params>
+<param field="Mode1" label="API Key" width="500px" required="true" password="true" default="" />
+<param field="Mode2" label="VIN" width="300px" required="true" default="" />
+<param field="Mode3" label="Poll Interval (minutes)" width="80px" required="true" default="30" />
+<param field="Mode6" label="Debug" width="120px">
+<options>
+<option label="Off" value="0" default="true" />
+<option label="Basic" value="1" />
+<option label="Verbose" value="2" />
+</options>
+</param>
+</params>
 </plugin>
 """
 
+import os
 import time
 import Domoticz
 
-from constants import PLUGIN_VERSION, DEFAULT_POLL_MINUTES, MIN_POLL_MINUTES, MAX_POLL_MINUTES, UNITS
+from constants import (
+    DEFAULT_POLL_MINUTES, MAX_POLL_MINUTES, MIN_POLL_MINUTES,
+    PLUGIN_VERSION, STATE_CACHE_FILENAME,
+)
 from devices import DeviceManager
 from myskoda_api import MySkodaAPI
-from utils import safe_int, iso_to_text
-from vehicle import parse_vehicle
+from utils import clamp, load_json, safe_int, save_json_atomic, safe_str
+from vehicle import VehicleState
 
 
 class Logger:
-    def __init__(self, debug=False):
-        self.debug_enabled = debug
+    def Debug(self, message):
+        Domoticz.Debug(str(message))
 
-    def log(self, message):
-        Domoticz.Log("[MySkoda] {}".format(message))
+    def Log(self, message):
+        Domoticz.Log(str(message))
 
-    def debug(self, message):
-        if self.debug_enabled:
-            Domoticz.Debug("[MySkoda] {}".format(message))
-
-    def error(self, message):
-        Domoticz.Error("[MySkoda] {}".format(message))
+    def Error(self, message):
+        Domoticz.Error(str(message))
 
 
 class BasePlugin:
     def __init__(self):
-        self.vin = ""
-        self.api_key = ""
-        self.poll_minutes = DEFAULT_POLL_MINUTES
-        self.debug_enabled = False
-        self.last_poll = 0
-        self.initialized = False
+        self.logger = Logger()
         self.api = None
         self.devices = None
-        self.logger = Logger(False)
-        self.api_status = ""
+        self.poll_minutes = DEFAULT_POLL_MINUTES
+        self.last_poll = 0.0
+        self.last_success = 0.0
+        self.failure_count = 0
+        self.next_retry_at = 0.0
+        self.cache_path = None
+        self.cached_state = None
+        self.api_status = "STARTING"
+        self.api_rate = "Unavailable"
+        self.api_key_expiry = "Unknown"
 
-    def onStart(self):
-        self.vin = Parameters.get("Username", "").strip().upper()
-        self.api_key = Parameters.get("Password", "").strip()
-        self.poll_minutes = safe_int(Parameters.get("Mode1", str(DEFAULT_POLL_MINUTES)), DEFAULT_POLL_MINUTES)
-        self.poll_minutes = max(MIN_POLL_MINUTES, min(MAX_POLL_MINUTES, self.poll_minutes))
-        self.debug_enabled = Parameters.get("Mode2", "0") == "1"
-        self.logger = Logger(self.debug_enabled)
-        self.logger.log("Starting MyŠkoda API Integration {}".format(PLUGIN_VERSION))
+    def _parse_config(self):
+        api_key = safe_str(Parameters.get("Mode1", "")).strip()
+        vin = safe_str(Parameters.get("Mode2", "")).strip()
+        poll = safe_int(Parameters.get("Mode3", DEFAULT_POLL_MINUTES), DEFAULT_POLL_MINUTES)
+        poll = clamp(poll or DEFAULT_POLL_MINUTES, MIN_POLL_MINUTES, MAX_POLL_MINUTES)
+        if not api_key:
+            raise ValueError("API Key is not configured")
+        if not vin:
+            raise ValueError("VIN is not configured")
+        self.poll_minutes = poll
+        return api_key, vin
 
-        if not self.vin:
-            self.logger.error("Vehicle VIN is not configured")
-        if not self.api_key:
-            self.logger.error("MyŠkoda API key is not configured")
+    def _cache_load(self):
+        if not self.cache_path:
+            return
+        data = load_json(self.cache_path, {})
+        state_data = data.get("state") if isinstance(data, dict) else None
+        if isinstance(state_data, dict):
+            self.cached_state = VehicleState.from_dict(state_data)
+            self.logger.Debug("Loaded last-known-good vehicle state from cache")
 
-        self.devices = DeviceManager(self.logger, Devices)
-        if len(Devices) == 0:
-            self.devices.create_all()
-        else:
-            self.logger.debug("{} existing MySkoda devices found".format(len(Devices)))
+    def _cache_save(self, state):
+        if not self.cache_path:
+            return
+        payload = {
+            "version": PLUGIN_VERSION,
+            "saved_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "state": state.to_dict(),
+        }
+        try:
+            save_json_atomic(self.cache_path, payload)
+        except Exception as exc:
+            self.logger.Error("Could not save state cache: {}".format(exc))
 
-        self.api = MySkodaAPI(self.vin, self.api_key, self.logger)
-        self.initialized = True
-        if self.vin and self.api_key:
-            self.poll()
-            self.last_poll = time.time()
+    def _set_failure(self, result):
+        self.failure_count += 1
+        self.api_status = self._classify_error(result)
+        delay = min(max(30.0, self.poll_minutes * 60.0), 3600.0)
+        delay *= min(2 ** max(0, self.failure_count - 1), 4)
+        if result.retry_after is not None:
+            delay = max(delay, result.retry_after)
+        self.next_retry_at = time.time() + min(delay, 3600.0)
 
-    def poll(self):
-        self.logger.debug("Starting API poll")
-        result = self.api.get_vehicle()
-        self.api_status = "HTTP {}".format(result.status) if result.status else (result.error_type or "Error")
-        self.devices.update_text("api_status", self.api_status)
-        if self.api.rate_limit:
-            self.devices.update_text("api_rate_limit", self.api.rate_limit)
-        if self.api.api_key_expires:
-            self.devices.update_text("api_key_expiry", iso_to_text(self.api.api_key_expires))
+    @staticmethod
+    def _classify_error(result):
+        if result.status in (401, 403):
+            return "AUTH_ERROR"
+        if result.status == 429:
+            return "RATE_LIMITED"
+        if result.status in (500, 502, 503, 504):
+            return "API_ERROR"
+        if result.status is None:
+            return "CONNECTION_ERROR"
+        if result.status == 200 and result.data is None:
+            return "INVALID_DATA"
+        return "API_ERROR"
+
+    def _poll(self):
+        now = time.time()
+        if now < self.next_retry_at:
+            return
+        self.last_poll = now
+        self.logger.Debug("Polling MySkoda API")
+        result = self.api.fetch_vehicle()
+        self.api_rate = result.rate_text
 
         if not result.ok:
+            self._set_failure(result)
+            self.logger.Error("MySkoda API: {}".format(result.error))
+            if self.devices:
+                self.devices.update_api_only(self.api_status, self.api_rate)
             return
 
-        state = parse_vehicle(result.data, self.logger)
-        if state is None:
-            self.api_status = "Invalid vehicle data"
-            self.devices.update_text("api_status", self.api_status)
-            self.logger.error("API response does not contain a valid vehicle object")
+        try:
+            state = VehicleState.from_api(result.data)
+            if not state.vin:
+                state.vin = self.api.vin
+            self.cached_state = state
+            self._cache_save(state)
+            self.last_success = now
+            self.failure_count = 0
+            self.next_retry_at = 0.0
+            self.api_status = "OK"
+            self.devices.update(state, self.api_status, self.api_rate, self.api_key_expiry)
+            self.logger.Log("MySkoda API update successful")
+        except Exception as exc:
+            self.failure_count += 1
+            self.api_status = "INVALID_DATA"
+            self.next_retry_at = time.time() + min(self.poll_minutes * 60.0, 3600.0)
+            self.logger.Error("Could not parse MySkoda API response: {}".format(exc))
+            self.devices.update_api_only(self.api_status, self.api_rate)
+
+    def onStart(self):
+        try:
+            api_key, vin = self._parse_config()
+        except ValueError as exc:
+            self.logger.Error(str(exc))
             return
 
-        self._apply_state(state)
-        self.logger.debug("API poll completed successfully")
-
-    def _apply_state(self, state):
-        d = self.devices
-        d.update_text("vehicle", state.name)
-        for key in ("doors_locked", "doors", "windows", "lights", "trunk", "bonnet", "sunroof", "vehicle_state", "air_conditioning", "auxiliary_heating", "active_ventilation"):
-            d.update_selector(key, getattr(state, key))
-        d.update_percentage("fuel_level", state.fuel_level)
-        d.update_distance("fuel_range", state.fuel_range_km)
-        d.update_distance("total_range", state.total_range_km)
-        d.update_distance("odometer", state.odometer_km)
-        d.update_text("parking_address", state.parking_address)
-        d.update_text("parking_gps", state.parking_gps)
-        d.update_temperature("target_temperature", state.target_temperature)
-        d.update_text("vehicle_captured", iso_to_text(state.vehicle_captured))
+        self.logger.Log("Starting MySkoda API Integration {}".format(PLUGIN_VERSION))
+        self.devices = DeviceManager(self.logger, Devices)
+        self.devices.ensure_devices()
+        self.cache_path = os.path.join(Parameters.get("HomeFolder", "."), STATE_CACHE_FILENAME)
+        self._cache_load()
+        self.api = MySkodaAPI(api_key, vin, self.logger)
+        self._poll()
 
     def onStop(self):
-        self.logger.log("Stopping MyŠkoda API Integration")
+        self.logger.Log("Stopping MySkoda API Integration")
 
     def onHeartbeat(self):
-        if not self.initialized or not self.vin or not self.api_key:
+        if self.api is None:
             return
         now = time.time()
-        if self.last_poll == 0 or now - self.last_poll >= self.poll_minutes * 60:
-            self.poll()
-            self.last_poll = now
-
-    def onCommand(self, Unit, Command, Level, Color):
-        self.logger.debug("Ignoring command for Unit {} (read-only alpha plugin)".format(Unit))
+        if now - self.last_poll >= self.poll_minutes * 60.0:
+            self._poll()
 
 
 _plugin = BasePlugin()
@@ -165,7 +195,3 @@ def onStop():
 
 def onHeartbeat():
     _plugin.onHeartbeat()
-
-
-def onCommand(Unit, Command, Level, Color):
-    _plugin.onCommand(Unit, Command, Level, Color)

@@ -1,2 +1,1 @@
-# No third-party Python dependencies.
-# Domoticz provides the Domoticz Python plugin API.
+# No third-party Python dependencies are required.

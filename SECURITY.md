@@ -1,19 +1,17 @@
 # Security Policy
 
+## Supported versions
+
+Security fixes are intended for the current development release.
+
 ## Reporting a vulnerability
 
-Please do not publish API keys, VINs, access tokens, passwords, or private vehicle/location data in GitHub issues.
+Please do not publish API keys, credentials, VINs, or other private vehicle data in a public GitHub issue.
 
-For security issues, use GitHub's private vulnerability reporting/security contact mechanism where available.
+Use the repository's private GitHub security reporting mechanism where available, or contact the maintainer privately.
 
-## Credentials
+## API keys
 
-The MySkoda API key is entered through Domoticz's password field. The plugin does not intentionally log the API key or include it in diagnostic messages.
+The MySkoda API key is supplied through the Domoticz hardware configuration. The plugin does not intentionally log the API key and does not write it to its persistent state cache.
 
-When sharing logs, configuration screenshots, or API responses, redact:
-
-- MySkoda API keys
-- VINs
-- Vehicle location/GPS coordinates
-- Account identifiers
-- Authentication tokens
+Users should still protect the Domoticz configuration and host filesystem because the API key is required for the integration to operate.

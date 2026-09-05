@@ -1,18 +1,23 @@
 # Changelog
 
-## 0.0.2-alpha - Architecture/refactor
+## 0.0.3-alpha
 
-- Split the 0.0.1-beta monolithic plugin into dedicated modules.
-- Added `MySkodaAPI` HTTP client and `APIResult` response model.
-- Added normalized `VehicleState` parsing layer.
-- Added `DeviceManager` for Domoticz device creation/update logic.
-- Centralized version, API, unit and selector constants.
-- Preserved existing Domoticz unit numbers 1-23.
-- Preserved read-only behaviour; no vehicle commands were added.
-- Made GPS parsing defensive against malformed coordinates.
-- Kept API key out of debug output.
-- Added compile/test scaffolding for future releases.
+### Added
+- Robust API retry handling for HTTP 429 and transient 5xx responses.
+- `Retry-After` handling.
+- Exponential backoff for transient connection errors.
+- API error classification.
+- Rate-limit metadata reporting.
+- Persistent last-known-good vehicle-state cache.
+- Failure handling that preserves valid Domoticz values.
+- Additional parser and API metadata tests.
 
-### 0.0.2-alpha hotfix
-- Fixed `DeviceManager` access to Domoticz `Devices`; the refactored module no longer assumes `Devices` is a global in `devices.py`.
-- Existing Domoticz hardware/devices remain compatible; no reintegration is required.
+### Changed
+- Polling now backs off after failures instead of hammering the API.
+- Existing Domoticz unit IDs 1–23 remain unchanged.
+- API key is never included in diagnostic output or state cache.
+
+### Unchanged
+- Read-only operation.
+- Direct official MySkoda API access.
+- Python standard library only.

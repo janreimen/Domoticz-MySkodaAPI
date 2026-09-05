@@ -1,101 +1,169 @@
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
-from constants import API_BASE, VEHICLE_ENDPOINT, API_TIMEOUT, API_INCLUDE, USER_AGENT
+from constants import (
+    API_BASE, API_INCLUDE, API_TIMEOUT, INITIAL_BACKOFF, MAX_BACKOFF,
+    MAX_RETRIES, RETRYABLE_STATUS, USER_AGENT, VEHICLE_ENDPOINT,
+)
 
 
 class APIResult:
-    def __init__(self, data=None, status=None, error_type=None, retry_after=None):
-        self.data = data
+    def __init__(self, ok=False, status=None, data=None, error="", headers=None,
+                 attempts=0, retry_after=None, elapsed=0.0):
+        self.ok = ok
         self.status = status
-        self.error_type = error_type
+        self.data = data
+        self.error = error
+        self.headers = headers or {}
+        self.attempts = attempts
         self.retry_after = retry_after
+        self.elapsed = elapsed
 
     @property
-    def ok(self):
-        return self.data is not None and self.status == 200
+    def rate_limit(self):
+        return self.headers.get("x-ratelimit-limit") or self.headers.get("ratelimit-limit")
+
+    @property
+    def rate_remaining(self):
+        return self.headers.get("x-ratelimit-remaining") or self.headers.get("ratelimit-remaining")
+
+    @property
+    def rate_reset(self):
+        return self.headers.get("x-ratelimit-reset") or self.headers.get("ratelimit-reset")
+
+    @property
+    def rate_text(self):
+        parts = []
+        if self.rate_limit is not None:
+            parts.append("limit=" + str(self.rate_limit))
+        if self.rate_remaining is not None:
+            parts.append("remaining=" + str(self.rate_remaining))
+        if self.rate_reset is not None:
+            parts.append("reset=" + str(self.rate_reset))
+        if self.retry_after is not None:
+            parts.append("retry-after=" + str(self.retry_after))
+        return ", ".join(parts) if parts else "Unavailable"
 
 
 class MySkodaAPI:
-    def __init__(self, vin, api_key, logger):
-        self.vin = vin
-        self.api_key = api_key
+    def __init__(self, api_key, vin, logger=None, timeout=API_TIMEOUT):
+        self.api_key = api_key.strip()
+        self.vin = vin.strip()
         self.logger = logger
-        self.api_key_expires = ""
-        self.rate_limit = ""
+        self.timeout = timeout
+        self.last_result = None
 
-    def build_vehicle_url(self):
-        encoded_vin = urllib.parse.quote(self.vin, safe="")
-        endpoint = VEHICLE_ENDPOINT.format(vin=encoded_vin)
-        query = urllib.parse.urlencode([("include", ",".join(API_INCLUDE))])
-        return API_BASE + endpoint + "?" + query
+    def _log_debug(self, message):
+        if self.logger:
+            try:
+                self.logger.Debug(message)
+            except Exception:
+                pass
 
-    def get_vehicle(self):
-        request = urllib.request.Request(
-            self.build_vehicle_url(),
-            headers={
-                "X-API-Key": self.api_key,
-                "Accept": "application/json",
-                "User-Agent": USER_AGENT,
-            },
-            method="GET",
-        )
-        self.logger.debug("Requesting vehicle data")
+    def _log_error(self, message):
+        if self.logger:
+            try:
+                self.logger.Error(message)
+            except Exception:
+                pass
+
+    def _url(self):
+        query = urllib.parse.urlencode({"include": ",".join(API_INCLUDE)})
+        return API_BASE + VEHICLE_ENDPOINT.format(vin=urllib.parse.quote(self.vin, safe="")) + "?" + query
+
+    @staticmethod
+    def _parse_retry_after(value):
+        if value is None:
+            return None
         try:
-            with urllib.request.urlopen(request, timeout=API_TIMEOUT) as response:
-                self._capture_headers(response.headers)
-                status = response.getcode()
-                body = response.read().decode("utf-8", errors="replace")
-                if status != 200:
-                    self.logger.error("Unexpected HTTP status {}".format(status))
-                    return APIResult(status=status, error_type="HTTP")
-                try:
-                    data = json.loads(body)
-                except json.JSONDecodeError as exc:
-                    self.logger.error("Invalid JSON response: {}".format(exc))
-                    return APIResult(status=status, error_type="INVALID_JSON")
-                return APIResult(data=data, status=status)
-        except urllib.error.HTTPError as exc:
-            self._capture_headers(exc.headers)
-            status = exc.code
-            retry_after = exc.headers.get("Retry-After") if exc.headers else None
-            messages = {
-                400: "HTTP 400 Bad Request",
-                401: "HTTP 401 Unauthorized - check the API key",
-                403: "HTTP 403 Forbidden - API key may not be authorized for this vehicle",
-                404: "HTTP 404 Not Found - vehicle not found",
-                422: "HTTP 422 Unprocessable Entity",
-                429: "HTTP 429 Too Many Requests",
-                500: "HTTP 500 Internal Server Error",
-                503: "HTTP 503 Service Unavailable",
-                504: "HTTP 504 Gateway Timeout",
-            }
-            self.logger.error(messages.get(status, "HTTP {} returned by MyŠkoda API".format(status)))
-            if retry_after:
-                self.logger.error("Retry-After: {}".format(retry_after))
-            return APIResult(status=status, error_type="HTTP", retry_after=retry_after)
-        except urllib.error.URLError as exc:
-            self.logger.error("Connection error: {}".format(exc.reason))
-            return APIResult(error_type="CONNECTION")
-        except TimeoutError:
-            self.logger.error("API request timed out after {} seconds".format(API_TIMEOUT))
-            return APIResult(error_type="TIMEOUT")
-        except Exception as exc:
-            self.logger.error("Unexpected API error: {}".format(exc))
-            return APIResult(error_type="ERROR")
+            return max(0.0, float(value))
+        except (TypeError, ValueError):
+            return None
 
-    def _capture_headers(self, headers):
-        if not headers:
-            return
-        expires = headers.get("X-API-Key-Expires-At")
-        if expires:
-            self.api_key_expires = expires
-        remaining = headers.get("RateLimit-Remaining")
-        limit = headers.get("RateLimit-Limit")
-        reset = headers.get("RateLimit-Reset")
-        if remaining is not None or limit is not None or reset is not None:
-            self.rate_limit = "Remaining={}; Limit={}; Reset={}".format(
-                remaining or "?", limit or "?", reset or "?"
-            )
+    @staticmethod
+    def _headers_dict(headers):
+        result = {}
+        if headers:
+            for key in headers.keys():
+                value = headers.get(key)
+                if value is not None:
+                    result[str(key).lower()] = str(value)
+        return result
+
+    def fetch_vehicle(self):
+        headers = {
+            "Accept": "application/json",
+            "Authorization": "Bearer " + self.api_key,
+            "User-Agent": USER_AGENT,
+        }
+        url = self._url()
+        backoff = INITIAL_BACKOFF
+        started = time.time()
+        last_error = ""
+
+        for attempt in range(1, MAX_RETRIES + 2):
+            try:
+                request = urllib.request.Request(url, headers=headers, method="GET")
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    response_headers = self._headers_dict(response.headers)
+                    body = response.read().decode("utf-8", errors="replace")
+                    status = getattr(response, "status", 200)
+                    try:
+                        data = json.loads(body)
+                    except ValueError as exc:
+                        result = APIResult(False, status, None, "Invalid JSON response: {}".format(exc), response_headers, attempt, None, time.time() - started)
+                        self.last_result = result
+                        return result
+                    result = APIResult(200 <= status < 300, status, data, "" if 200 <= status < 300 else "HTTP {}".format(status), response_headers, attempt, None, time.time() - started)
+                    self.last_result = result
+                    return result
+            except urllib.error.HTTPError as exc:
+                response_headers = self._headers_dict(exc.headers)
+                retry_after = self._parse_retry_after(response_headers.get("retry-after"))
+                status = exc.code
+                try:
+                    body = exc.read().decode("utf-8", errors="replace")
+                except Exception:
+                    body = ""
+                if status in RETRYABLE_STATUS and attempt <= MAX_RETRIES:
+                    delay = retry_after if retry_after is not None else min(backoff, MAX_BACKOFF)
+                    self._log_debug("MySkoda API HTTP {} - retry {}/{} in {:.1f}s".format(status, attempt, MAX_RETRIES, delay))
+                    time.sleep(delay)
+                    backoff = min(backoff * 2.0, MAX_BACKOFF)
+                    continue
+                message = "HTTP {}".format(status)
+                if status in (401, 403):
+                    message += " - authentication/authorization failed"
+                elif body:
+                    try:
+                        parsed = json.loads(body)
+                        detail = parsed.get("message") or parsed.get("error") if isinstance(parsed, dict) else None
+                        if detail:
+                            message += " - " + str(detail)
+                    except ValueError:
+                        pass
+                result = APIResult(False, status, None, message, response_headers, attempt, retry_after, time.time() - started)
+                self.last_result = result
+                return result
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                last_error = "Connection error: {}".format(exc)
+                if attempt <= MAX_RETRIES:
+                    delay = min(backoff, MAX_BACKOFF)
+                    self._log_debug("{} - retry {}/{} in {:.1f}s".format(last_error, attempt, MAX_RETRIES, delay))
+                    time.sleep(delay)
+                    backoff = min(backoff * 2.0, MAX_BACKOFF)
+                    continue
+                result = APIResult(False, None, None, last_error, {}, attempt, None, time.time() - started)
+                self.last_result = result
+                return result
+            except Exception as exc:
+                result = APIResult(False, None, None, "Unexpected API error: {}".format(exc), {}, attempt, None, time.time() - started)
+                self.last_result = result
+                return result
+
+        result = APIResult(False, None, None, last_error or "API request failed", {}, MAX_RETRIES + 1, None, time.time() - started)
+        self.last_result = result
+        return result

@@ -1,72 +1,102 @@
-# MySkoda API Integration
+# MySkoda API Integration for Domoticz
 
-A Domoticz Python plugin for the official Škoda MySkoda Public API.
+**Version: 0.0.3-alpha**
 
-## Version
+A read-only Domoticz Python plugin using the official Škoda MySkoda Public API directly.
 
-**0.0.2-alpha** — architecture/refactor release.
+Repository: https://github.com/janreimen/Domoticz-MySkodaAPI
 
-This release keeps the existing read-only behaviour while separating the Domoticz integration, API client, vehicle-state parser, device mapping, constants, and utility functions. Remote vehicle commands are **not** implemented yet.
+## 0.0.3-alpha
 
-## Architecture
+This release builds on the 0.0.2-alpha architecture/refactor and concentrates on reliability:
 
-```text
-plugin.py
-  ├── myskoda_api.py   API transport and HTTP/rate-limit metadata
-  ├── vehicle.py       API response → normalized VehicleState
-  ├── devices.py       VehicleState → Domoticz devices
-  ├── constants.py     version, API configuration, units and selectors
-  └── utils.py         safe conversion and formatting helpers
-```
+- transient HTTP retry handling for 429/5xx responses
+- `Retry-After` support
+- exponential backoff for connection/transient failures
+- API status classification (`OK`, `AUTH_ERROR`, `RATE_LIMITED`, `API_ERROR`, `CONNECTION_ERROR`, `INVALID_DATA`)
+- rate-limit metadata exposed through the existing Domoticz device
+- last-known-good vehicle state persisted locally
+- temporary API failures do not erase the last valid vehicle values
+- retry/backoff after repeated failures
+- API key is never written to logs or cache
+- existing Domoticz unit IDs 1–23 are preserved
+- standard-library-only implementation
 
-The architecture is deliberately kept dependency-free: only Python standard-library modules are used in addition to Domoticz's plugin API.
+## Requirements
 
-## Current features
+- Domoticz with Python plugin support
+- Python 3
+- Škoda vehicle supported by the MySkoda Public API
+- MySkoda account
+- MySkoda Public API key
+- vehicle VIN
 
-The plugin retrieves the same read-only vehicle information as 0.0.1-beta:
-
-- Vehicle name
-- Door lock status
-- Door/window status
-- Lights
-- Trunk, bonnet and sunroof
-- Fuel level and range
-- Total range
-- Odometer
-- Parking state/address/GPS
-- Air-conditioning state and target temperature
-- Auxiliary heating
-- Active ventilation
-- Vehicle data timestamp
-- API key expiration
-- API rate-limit information
-- API status
+No third-party Python package is required.
 
 ## Installation
 
-Clone into the Domoticz plugins directory:
+For an existing installation, replace the plugin files in the existing directory rather than deleting/recreating the Domoticz hardware. This preserves the existing device units.
 
-```bash
-cd /opt/domoticz/plugins
-git clone https://github.com/janreimen/Domoticz-MySkodaAPI.git MySkodaAPI
-cd MySkodaAPI
-chmod +x plugin.py
-python3 -m py_compile plugin.py constants.py utils.py vehicle.py myskoda_api.py devices.py
+Typical installation path:
+
+```text
+/srv/domoticz/plugins/Domoticz-MySkodaAPI
 ```
 
-Restart Domoticz and add **MySkoda API Integration** as hardware.
+After replacing the files:
 
-- **Vehicle VIN** → Username field
-- **MyŠkoda API Key** → Password field
-- Poll interval → 15, 30 or 60 minutes
-- Debug → Normal or Debug
+```bash
+cd /srv/domoticz/plugins/Domoticz-MySkodaAPI
+python3 -m py_compile plugin.py devices.py myskoda_api.py vehicle.py constants.py utils.py tests.py
+python3 tests.py
+sudo systemctl restart domoticz
+```
 
-## Important
+## Configuration
 
-0.0.2-alpha is an architecture release. Existing unit numbers are retained so an upgrade does not intentionally renumber the current devices.
+- API Key: your MySkoda Public API key
+- VIN: vehicle VIN
+- Poll Interval: 15–60 minutes; default 30
+- Debug: Off / Basic / Verbose
 
-Remote commands are still disabled. Clicking a selector does not send a command to the vehicle.
+The plugin remains read-only in 0.0.3-alpha. It does not send commands to the vehicle.
 
-## Development direction
+## State cache
 
-Future releases can add persistent state/cache, smarter rate-limit-aware scheduling, battery/charging telemetry and verified remote commands without putting those responsibilities back into `plugin.py`.
+The plugin stores the last successfully parsed vehicle state in `myskoda_last_state.json` under the Domoticz plugin home. It is used only as a last-known-good state and does not contain the API key.
+
+## Existing Domoticz units
+
+The following unit numbers remain unchanged from earlier versions:
+
+| Unit | Device |
+|---:|---|
+| 1 | Vehicle |
+| 2 | Doors Locked |
+| 3 | Doors |
+| 4 | Windows |
+| 5 | Lights |
+| 6 | Trunk |
+| 7 | Bonnet |
+| 8 | Sunroof |
+| 9 | Fuel Level |
+| 10 | Fuel Range |
+| 11 | Total Range |
+| 12 | Odometer |
+| 13 | Vehicle State |
+| 14 | Parking Address |
+| 15 | Parking GPS |
+| 16 | Air Conditioning |
+| 17 | Target Temperature |
+| 18 | Auxiliary Heating |
+| 19 | Active Ventilation |
+| 20 | Vehicle Captured |
+| 21 | API Key Expiry |
+| 22 | API Rate Limit |
+| 23 | API Status |
+
+## Security
+
+Never paste the API key into an issue, log, screenshot, Git repository, or public configuration file.
+
+See `SECURITY.md` for reporting security issues.
