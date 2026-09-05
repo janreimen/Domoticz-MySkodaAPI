@@ -39,6 +39,20 @@ class APIResult:
         return self.headers.get("x-api-key-expires-at", "")
 
     @property
+    def rate_remaining_value(self):
+        try:
+            return max(0, int(float(self.rate_remaining))) if self.rate_remaining is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @property
+    def rate_reset_value(self):
+        try:
+            return max(0.0, float(self.rate_reset)) if self.rate_reset is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @property
     def rate_text(self):
         parts = []
         if self.rate_limit is not None:

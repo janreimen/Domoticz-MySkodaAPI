@@ -83,6 +83,18 @@ class VehicleState:
     target_temperature: Optional[float] = None
     auxiliary_heating: str = "Unknown"
     active_ventilation: str = "Unknown"
+    fuel_type: str = "Unknown"
+    charging_state: str = "Unknown"
+    battery_soc: Optional[float] = None
+    electric_range: Optional[float] = None
+    charging_connected: Optional[bool] = None
+    charge_target: Optional[float] = None
+    charge_mode: str = "Unknown"
+    charging_captured_at: str = ""
+    fuel_captured_at: str = ""
+    odometer_captured_at: str = ""
+    api_errors: list = field(default_factory=list)
+    supported_operations: list = field(default_factory=list)
     captured_at: str = ""
     raw: Dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -110,6 +122,11 @@ class VehicleState:
         ac = root.get("airConditioning") or root.get("air_conditioning") or {}
         heat = root.get("auxiliaryHeating") or root.get("auxiliary_heating") or {}
         vent = root.get("activeVentilation") or root.get("active_ventilation") or {}
+        charging = root.get("charging") or {}
+        errors = data.get("errors") if isinstance(data, dict) else []
+        operations = root.get("operations") or []
+        if not isinstance(errors, list):
+            errors = []
 
         vin = safe_str(first(root, "vin", default=first(info, "vin", "vehicleIdentificationNumber", default="")))
         name = safe_str(first(root, "name", default=first(info, "name", "vehicleName", "nickname", default="")))
@@ -124,6 +141,7 @@ class VehicleState:
         sunroof = first(detail, "sunroof", "sunroofState", "sunroofStatus", default=first(status, "sunroof", "sunroofState", "sunroofStatus", default="Unknown"))
 
         fuel_level = safe_float(first(primary, "currentFuelLevelInPercent", default=first(fuel, "currentFuelLevel", "fuelLevel", "level", "fuelLevelPercent", default=None)))
+        fuel_type = safe_str(first(primary, "engineType", default=first(fuel, "carType", "engineType", default="Unknown")))
         fuel_range = safe_float(first(primary, "remainingRangeInKm", default=first(fuel, "fuelRange", "range", "remainingRange", default=None)))
         total_range = safe_float(first(fuel, "totalRangeInKm", "totalRange", default=first(root, "totalRangeInKm", "totalRange", default=None)))
         odometer = safe_float(first(odo, "mileageInKm", "value", "distance", "odometer", default=first(root, "odometer", default=None)))
@@ -140,6 +158,16 @@ class VehicleState:
         heat_state = state_text(first(heat, "state", "status", "active", default="Unknown"))
         vent_state = state_text(first(vent, "state", "status", "active", default="Unknown"))
         captured = safe_str(first(status, "carCapturedTimestamp", default=first(root, "carCapturedTimestamp", default=first(odo, "carCapturedTimestamp", default=""))))
+        fuel_captured = safe_str(first(primary, "carCapturedTimestamp", default=first(fuel, "carCapturedTimestamp", default="")))
+        odo_captured = safe_str(first(odo, "carCapturedTimestamp", default=""))
+
+        charging_state = state_text(first(charging, "state", "status", "chargingState", default="Unknown"))
+        battery_soc = safe_float(first(charging, "batteryLevelInPercent", "stateOfChargeInPercent", "currentSoCInPercent", "socInPercent", default=first(charging, "battery", "soc", default=None)))
+        electric_range = safe_float(first(charging, "remainingRangeInKm", "electricRangeInKm", "rangeInKm", default=None))
+        charging_connected = boolish(first(charging, "connected", "isConnected", "pluggedIn", "chargingCableConnected", default=None))
+        charge_target = safe_float(first(charging, "targetStateOfChargeInPercent", "targetSoCInPercent", "targetBatteryLevelInPercent", "targetSoc", default=None))
+        charge_mode = state_text(first(charging, "mode", "chargeMode", "chargingMode", default="Unknown"))
+        charging_captured = safe_str(first(charging, "carCapturedTimestamp", "capturedAt", default=""))
 
         return cls(
             vin=vin, name=name, license_plate=plate,
@@ -151,6 +179,12 @@ class VehicleState:
             parking_latitude=latitude, parking_longitude=longitude,
             air_conditioning=ac_state, target_temperature=target_temp,
             auxiliary_heating=heat_state, active_ventilation=vent_state,
+            fuel_type=fuel_type, charging_state=charging_state, battery_soc=battery_soc,
+            electric_range=electric_range, charging_connected=charging_connected,
+            charge_target=charge_target, charge_mode=charge_mode,
+            charging_captured_at=charging_captured, fuel_captured_at=fuel_captured,
+            odometer_captured_at=odo_captured, api_errors=errors,
+            supported_operations=[(x.get("name") if isinstance(x, dict) else str(x)) for x in operations],
             captured_at=captured, raw=data,
         )
 

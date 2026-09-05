@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.0.3.5-alpha.4"
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.0-alpha.2"
     externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
 <description>
 <h2>MySkoda API Integration</h2><br/>
@@ -27,9 +27,11 @@ import os
 import time
 import Domoticz
 
+from datetime import datetime, timezone
+
 from constants import (
     DEFAULT_POLL_MINUTES, MAX_POLL_MINUTES, MIN_POLL_MINUTES,
-    PLUGIN_VERSION, STATE_CACHE_FILENAME, DISTANCE_STATE_FILENAME,
+    PLUGIN_VERSION, STATE_CACHE_FILENAME, DISTANCE_STATE_FILENAME, API_KEY_EXPIRY_WARNING_DAYS,
 )
 from devices import DeviceManager
 from myskoda_api import MySkodaAPI
@@ -71,6 +73,10 @@ class BasePlugin:
         self.data_quality = "UNKNOWN"
         self.api_rate = "Unavailable"
         self.api_key_expiry = "Unknown"
+        self.api_key_expiry_days = None
+        self.vehicle_captured_at = None
+        self.rate_remaining = None
+        self.rate_reset_at = None
 
     def _parse_config(self):
         api_key = safe_str(Parameters.get("Mode1", "")).strip()
@@ -164,6 +170,64 @@ class BasePlugin:
         except Exception as exc:
             self.logger.Error("Could not save state cache: {}".format(exc))
 
+    @staticmethod
+    def _parse_iso_timestamp(value):
+        if not value:
+            return None
+        try:
+            text = str(value).strip()
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            dt = datetime.fromisoformat(text)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except (TypeError, ValueError):
+            return None
+
+    def _api_key_status(self, expiry_dt, now=None):
+        now = time.time() if now is None else now
+        if expiry_dt is None:
+            return {"level": 0, "state": "UNKNOWN", "text": "UNKNOWN — API key expiry is not available"}
+        remaining_days = (expiry_dt.timestamp() - now) / 86400.0
+        if remaining_days <= 0:
+            return {"level": 4, "state": "EXPIRED", "text": "EXPIRED — API key has expired"}
+        if remaining_days <= API_KEY_EXPIRY_WARNING_DAYS:
+            return {"level": 2, "state": "WARNING", "text": "WARNING — API key expires in {:.1f} days (threshold: {} days)".format(remaining_days, API_KEY_EXPIRY_WARNING_DAYS)}
+        return {"level": 1, "state": "OK", "text": "OK — API key expires in {:.1f} days".format(remaining_days)}
+
+    def _derived_telemetry(self, now=None):
+        now = time.time() if now is None else now
+        captured_elapsed = None
+        if self.vehicle_captured_at:
+            captured_elapsed = max(0.0, now - self.vehicle_captured_at.timestamp())
+
+        expiry_days = None
+        expiry_dt = self._parse_iso_timestamp(self.api_key_expiry)
+        api_key_status = self._api_key_status(expiry_dt, now)
+        if expiry_dt:
+            expiry_days = max(0.0, (expiry_dt.timestamp() - now) / 86400.0)
+
+        rate_reset = None
+        if self.rate_reset_at is not None:
+            rate_reset = max(0.0, self.rate_reset_at - now)
+
+        return captured_elapsed, expiry_days, rate_reset, api_key_status
+
+    def _api_status_text(self, result):
+        code = result.status
+        if code is None:
+            return "- Connection error"
+        meanings = {
+            200: "OK", 400: "Bad Request", 401: "Unauthorized / API key expired",
+            403: "Forbidden / not authorized", 404: "Not Found", 409: "Conflict",
+            422: "Unprocessable / unsupported or disabled", 429: "Too Many Requests / rate limited",
+            500: "Internal Server Error", 502: "Bad Gateway", 503: "Service Unavailable",
+            504: "Gateway Timeout",
+        }
+        meaning = meanings.get(code, "HTTP error")
+        return "{} {}".format(code, meaning)
+
     def _set_failure(self, result):
         self.failure_count += 1
         self.api_status = self._classify_error(result)
@@ -195,6 +259,9 @@ class BasePlugin:
         self.logger.Debug("Polling MySkoda API")
         result = self.api.fetch_vehicle()
         self.api_rate = result.rate_text
+        self.rate_remaining = result.rate_remaining_value
+        if result.rate_reset_value is not None:
+            self.rate_reset_at = now + result.rate_reset_value
         if result.api_key_expires_at:
             self.api_key_expiry = result.api_key_expires_at
 
@@ -203,7 +270,12 @@ class BasePlugin:
             self.logger.Error("MySkoda API: {}".format(result.error))
             self.data_quality = "STALE" if self.cached_state is not None else "ERROR"
             if self.devices:
-                self.devices.update_api_only(self.api_status, self.api_rate, self.data_quality, self.cached_state)
+                self.devices.update_api_only(
+                self._api_status_text(result), self.api_rate, self.data_quality, self.cached_state,
+                api_rate_remaining=self.rate_remaining,
+                api_rate_reset=max(0.0, self.rate_reset_at - time.time()) if self.rate_reset_at else None,
+                api_key_status=self._api_key_status(self._parse_iso_timestamp(self.api_key_expiry), time.time()),
+            )
             return
 
         try:
@@ -214,12 +286,18 @@ class BasePlugin:
             self._cache_save(state)
             today_distance, yesterday_distance = self._update_distance_delta(state.odometer)
             self.last_success = now
+            self.vehicle_captured_at = self._parse_iso_timestamp(state.captured_at)
             self.failure_count = 0
             self.next_retry_at = 0.0
             self.api_status = "OK"
             self.data_quality = "GOOD"
+            captured_elapsed, expiry_days, rate_reset, api_key_status = self._derived_telemetry(now)
+            self.api_key_expiry_days = expiry_days
             self.devices.update(
-                state, self.api_status, self.api_rate, self.api_key_expiry,
+                state, self._api_status_text(result), self.api_rate, expiry_days,
+                vehicle_captured_elapsed=captured_elapsed,
+                api_rate_remaining=self.rate_remaining, api_rate_reset=rate_reset,
+                api_key_status=api_key_status,
                 today_distance=today_distance,
                 yesterday_distance=yesterday_distance,
                 data_quality=self.data_quality,
@@ -231,7 +309,12 @@ class BasePlugin:
             self.next_retry_at = time.time() + min(self.poll_minutes * 60.0, 3600.0)
             self.logger.Error("Could not parse MySkoda API response: {}".format(exc))
             self.data_quality = "STALE" if self.cached_state is not None else "ERROR"
-            self.devices.update_api_only(self.api_status, self.api_rate, self.data_quality, self.cached_state)
+            self.devices.update_api_only(
+                self._api_status_text(result), self.api_rate, self.data_quality, self.cached_state,
+                api_rate_remaining=self.rate_remaining,
+                api_rate_reset=max(0.0, self.rate_reset_at - time.time()) if self.rate_reset_at else None,
+                api_key_status=self._api_key_status(self._parse_iso_timestamp(self.api_key_expiry), time.time()),
+            )
 
     def onStart(self):
         try:
@@ -251,6 +334,25 @@ class BasePlugin:
         self.api = MySkodaAPI(api_key, vin, self.logger)
         self._poll()
 
+    def onCommand(self, unit, command, level, hue):
+        """Reject local selector changes: these devices are telemetry-only.
+
+        Domoticz selector widgets are inherently interactive. We therefore
+        deliberately do not translate selector commands into vehicle/API
+        commands. If a dashboard changes a selector locally, restore the
+        last API-derived state immediately when possible.
+        """
+        self.logger.Debug(
+            "Ignoring read-only selector command unit={} command={} level={}".format(
+                unit, command, level
+            )
+        )
+        if self.devices and self.cached_state is not None:
+            try:
+                self.devices.restore_selector(unit, self.cached_state)
+            except Exception as exc:
+                self.logger.Debug("Could not restore selector unit {}: {}".format(unit, exc))
+
     def onStop(self):
         self.logger.Log("Stopping MySkoda API Integration")
 
@@ -258,6 +360,18 @@ class BasePlugin:
         if self.api is None:
             return
         now = time.time()
+        if self.devices and (self.cached_state is not None or self.vehicle_captured_at or self.api_key_expiry or self.rate_reset_at):
+            captured_elapsed, expiry_days, rate_reset, api_key_status = self._derived_telemetry(now)
+            if captured_elapsed is not None:
+                self.devices._update_custom_numeric("vehicle_captured", captured_elapsed, self.devices.CUSTOM_SECONDS_OPTIONS)
+            if expiry_days is not None:
+                self.devices._update_custom_numeric("api_key_expiry", expiry_days, self.devices.CUSTOM_DAYS_OPTIONS, decimals=2)
+            if self.rate_remaining is not None:
+                self.devices._update_custom_numeric("api_rate_remaining", self.rate_remaining, self.devices.CUSTOM_REQUESTS_OPTIONS)
+            if rate_reset is not None:
+                self.devices._update_custom_numeric("api_rate_reset", rate_reset, self.devices.CUSTOM_SECONDS_OPTIONS)
+            expiry_dt = self._parse_iso_timestamp(self.api_key_expiry)
+            self.devices._update_alert("api_key_status", self._api_key_status(expiry_dt, now)["level"], self._api_key_status(expiry_dt, now)["text"])
         if now - self.last_poll >= self.poll_minutes * 60.0:
             self._poll()
 
@@ -275,3 +389,7 @@ def onStop():
 
 def onHeartbeat():
     _plugin.onHeartbeat()
+
+
+def onCommand(unit, command, level, hue):
+    _plugin.onCommand(unit, command, level, hue)

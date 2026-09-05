@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
 *.pyo
-
+archives/
 Domoticz*.zip
 .vscode/
 .idea/

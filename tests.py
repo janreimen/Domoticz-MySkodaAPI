@@ -80,7 +80,7 @@ class DeviceModelTests(unittest.TestCase):
 
     def test_all_units_are_contiguous(self):
         from constants import UNITS
-        self.assertEqual(sorted(UNITS.values()), list(range(1, 29)))
+        self.assertEqual(sorted(UNITS.values()), list(range(1, 45)))
 
 
 class DistanceDeltaTests(unittest.TestCase):
@@ -106,3 +106,78 @@ class DeviceTypeTests(unittest.TestCase):
         self.assertEqual(DeviceManager.CUSTOM_KM_SWITCHTYPE, 0)
 
 
+
+class TelemetryTests(unittest.TestCase):
+    def test_extended_telemetry(self):
+        data = {"vehicle": {
+            "fuelStatus": {"primaryEngineRange": {"engineType": "GASOLINE", "currentFuelLevelInPercent": 100, "remainingRangeInKm": 640}},
+            "charging": {"state": "NOT_CHARGING", "batteryLevelInPercent": 80, "remainingRangeInKm": 42, "connected": False, "targetStateOfChargeInPercent": 90, "mode": "MANUAL", "carCapturedTimestamp": "2026-09-05T07:00:00Z"},
+            "odometer": {"mileageInKm": 7232, "carCapturedTimestamp": "2026-09-05T07:04:51Z"},
+            "operations": [{"name": "startAuxiliaryHeating"}],
+        }, "errors": [{"type": "https://example/_UNSUPPORTED", "code": "_UNSUPPORTED"}]}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.fuel_type, "GASOLINE")
+        self.assertEqual(state.battery_soc, 80.0)
+        self.assertEqual(state.electric_range, 42.0)
+        self.assertFalse(state.charging_connected)
+        self.assertEqual(state.charge_target, 90.0)
+        self.assertEqual(state.supported_operations, ["startAuxiliaryHeating"])
+        self.assertEqual(len(state.api_errors), 1)
+
+    def test_new_units(self):
+        from constants import UNITS
+        self.assertEqual(UNITS["battery_soc"], 31)
+        self.assertEqual(UNITS["supported_operations"], 41)
+        self.assertEqual(UNITS["api_rate_remaining"], 42)
+        self.assertEqual(UNITS["api_rate_reset"], 43)
+        self.assertEqual(UNITS["api_key_status"], 44)
+        self.assertEqual(sorted(UNITS.values()), list(range(1, 45)))
+
+
+class NativeStateSensorTests(unittest.TestCase):
+    def test_selector_definition(self):
+        self.assertEqual(DeviceManager.SELECTOR_TYPE, 244)
+        self.assertEqual(DeviceManager.SELECTOR_SUBTYPE, 62)
+        self.assertEqual(DeviceManager.SELECTOR_SWITCHTYPE, 18)
+        self.assertIn("LevelNames", DeviceManager.SELECTOR_OPTIONS["selector_open_closed"])
+
+    def test_selector_levels(self):
+        self.assertEqual(DeviceManager.SELECTOR_LEVELS["CLOSED"], 10)
+        self.assertEqual(DeviceManager.SELECTOR_LEVELS["OPEN"], 20)
+        self.assertEqual(DeviceManager.SELECTOR_LEVELS["LOCKED"], 10)
+        self.assertEqual(DeviceManager.SELECTOR_LEVELS["UNLOCKED"], 20)
+
+    def test_target_temperature_is_custom(self):
+        self.assertEqual(DeviceManager.CUSTOM_C_OPTIONS, {"Custom": "1;°C"})
+
+
+class DerivedTelemetryTests(unittest.TestCase):
+    def test_api_status_mapping(self):
+        from myskoda_api import APIResult
+        from plugin import BasePlugin
+        plugin = BasePlugin()
+        self.assertEqual(plugin._api_status_text(APIResult(status=200)), "200 OK")
+        self.assertIn("401 Unauthorized", plugin._api_status_text(APIResult(status=401)))
+        self.assertIn("429 Too Many Requests", plugin._api_status_text(APIResult(status=429)))
+
+    def test_api_key_warning_states(self):
+        from datetime import timedelta, timezone, datetime
+        from constants import API_KEY_EXPIRY_WARNING_DAYS
+        from plugin import BasePlugin
+        plugin = BasePlugin()
+        now = datetime.now(timezone.utc).timestamp()
+        ok = plugin._api_key_status(datetime.fromtimestamp(now + (API_KEY_EXPIRY_WARNING_DAYS + 1) * 86400, timezone.utc), now)
+        warning = plugin._api_key_status(datetime.fromtimestamp(now + (API_KEY_EXPIRY_WARNING_DAYS - 1) * 86400, timezone.utc), now)
+        expired = plugin._api_key_status(datetime.fromtimestamp(now - 60, timezone.utc), now)
+        unknown = plugin._api_key_status(None, now)
+        self.assertEqual((ok["level"], ok["state"]), (1, "OK"))
+        self.assertEqual((warning["level"], warning["state"]), (2, "WARNING"))
+        self.assertEqual((expired["level"], expired["state"]), (4, "EXPIRED"))
+        self.assertEqual((unknown["level"], unknown["state"]), (0, "UNKNOWN"))
+
+    def test_iso_timestamp_and_elapsed(self):
+        from plugin import BasePlugin
+        plugin = BasePlugin()
+        dt = plugin._parse_iso_timestamp("2026-09-05T07:00:00Z")
+        self.assertIsNotNone(dt)
+        self.assertEqual(dt.tzinfo.utcoffset(dt).total_seconds(), 0)
