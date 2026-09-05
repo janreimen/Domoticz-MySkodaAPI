@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, Optional
 
-from utils import safe_float, safe_int, safe_str
+from utils import safe_float, safe_str
 
 
 TRUE_VALUES = {True, 1, "1", "true", "True", "TRUE", "yes", "on", "locked", "closed"}
@@ -33,7 +33,7 @@ def boolish(value, default=None):
         return False
     if isinstance(value, str):
         lower = value.strip().lower()
-        if lower in {"true", "1", "yes", "on", "locked", "closed", "active", "available"}:
+        if lower in {"true", "1", "yes", "on", "locked", "closed", "active", "available", "yes"}:
             return True
         if lower in {"false", "0", "no", "off", "unlocked", "open", "inactive", "unavailable"}:
             return False
@@ -45,7 +45,17 @@ def state_text(value, default="Unknown"):
         return default
     if isinstance(value, bool):
         return "ON" if value else "OFF"
+    if isinstance(value, dict):
+        nested = first(value, "state", "status", default=None)
+        if nested is not None:
+            return state_text(nested, default)
     return safe_str(value, default)
+
+
+def number_from(value, *keys):
+    if isinstance(value, dict):
+        return safe_float(first(value, *keys, default=None))
+    return safe_float(value)
 
 
 @dataclass
@@ -83,45 +93,53 @@ class VehicleState:
 
     @classmethod
     def from_api(cls, data):
-        data = data if isinstance(data, dict) else {}
-        info = data.get("info") or {}
-        status = data.get("status") or {}
-        fuel = data.get("fuelStatus") or data.get("fuel_status") or {}
-        odo = data.get("odometer") or {}
-        parking = data.get("parkingPosition") or data.get("parking_position") or {}
-        ac = data.get("airConditioning") or data.get("air_conditioning") or {}
-        heat = data.get("auxiliaryHeating") or data.get("auxiliary_heating") or {}
-        vent = data.get("activeVentilation") or data.get("active_ventilation") or {}
+        # Current API response wraps all vehicle fields below "vehicle".
+        root = data.get("vehicle") if isinstance(data, dict) else None
+        if not isinstance(root, dict):
+            root = data if isinstance(data, dict) else {}
 
-        vin = safe_str(first(info, "vin", "vehicleIdentificationNumber", default=first(data, "vin", default="")))
-        name = safe_str(first(info, "name", "vehicleName", "nickname", default=first(data, "name", default="")))
-        plate = safe_str(first(info, "licensePlate", "license_plate", "registrationNumber", default=""))
+        info = root.get("info") or {}
+        status = root.get("status") or {}
+        overall = status.get("overall") or {}
+        detail = status.get("detail") or {}
+        fuel = root.get("fuelStatus") or root.get("fuel_status") or {}
+        primary = fuel.get("primaryEngineRange") or {}
+        odo = root.get("odometer") or {}
+        parking = root.get("parkingPosition") or root.get("parking_position") or {}
+        gps = parking.get("gpsCoordinates") or parking.get("gps_coordinates") or {}
+        ac = root.get("airConditioning") or root.get("air_conditioning") or {}
+        heat = root.get("auxiliaryHeating") or root.get("auxiliary_heating") or {}
+        vent = root.get("activeVentilation") or root.get("active_ventilation") or {}
 
-        locked = boolish(first(status, "doorsLocked", "doorLockState", "locked", default=None))
-        doors = first(status, "doors", "doorState", "doorStatus", default="Unknown")
-        windows = first(status, "windows", "windowState", "windowStatus", default="Unknown")
-        lights = first(status, "lights", "lightState", "lightStatus", default="Unknown")
-        trunk = first(status, "trunk", "trunkState", "trunkStatus", default="Unknown")
-        bonnet = first(status, "bonnet", "hood", "bonnetState", "bonnetStatus", default="Unknown")
-        sunroof = first(status, "sunroof", "sunroofState", "sunroofStatus", default="Unknown")
+        vin = safe_str(first(root, "vin", default=first(info, "vin", "vehicleIdentificationNumber", default="")))
+        name = safe_str(first(root, "name", default=first(info, "name", "vehicleName", "nickname", default="")))
+        plate = safe_str(first(root, "licensePlate", "license_plate", default=first(info, "licensePlate", "license_plate", "registrationNumber", default="")))
 
-        fuel_level = safe_float(first(fuel, "currentFuelLevel", "fuelLevel", "level", "fuelLevelPercent", default=None))
-        fuel_range = safe_float(first(fuel, "fuelRange", "range", "remainingRange", default=None))
-        total_range = safe_float(first(status, "totalRange", "range", default=first(fuel, "totalRange", default=None)))
-        odometer = safe_float(first(odo, "value", "distance", "odometer", default=first(data, "odometer", default=None)))
+        locked = boolish(first(overall, "doorsLocked", "reliableLockStatus", "locked", default=first(status, "doorsLocked", "reliableLockStatus", "locked", default=None)))
+        doors = first(overall, "doors", "doorState", "doorStatus", default=first(status, "doors", "doorState", "doorStatus", default="Unknown"))
+        windows = first(overall, "windows", "windowState", "windowStatus", default=first(status, "windows", "windowState", "windowStatus", default="Unknown"))
+        lights = first(overall, "lights", "lightState", "lightStatus", default=first(status, "lights", "lightState", "lightStatus", default="Unknown"))
+        trunk = first(detail, "trunk", "trunkState", "trunkStatus", default=first(status, "trunk", "trunkState", "trunkStatus", default="Unknown"))
+        bonnet = first(detail, "bonnet", "hood", "bonnetState", "bonnetStatus", default=first(status, "bonnet", "hood", "bonnetState", "bonnetStatus", default="Unknown"))
+        sunroof = first(detail, "sunroof", "sunroofState", "sunroofStatus", default=first(status, "sunroof", "sunroofState", "sunroofStatus", default="Unknown"))
 
-        vehicle_state = state_text(first(status, "vehicleState", "state", "ignitionState", default="Unknown"))
+        fuel_level = safe_float(first(primary, "currentFuelLevelInPercent", default=first(fuel, "currentFuelLevel", "fuelLevel", "level", "fuelLevelPercent", default=None)))
+        fuel_range = safe_float(first(primary, "remainingRangeInKm", default=first(fuel, "fuelRange", "range", "remainingRange", default=None)))
+        total_range = safe_float(first(fuel, "totalRangeInKm", "totalRange", default=first(root, "totalRangeInKm", "totalRange", default=None)))
+        odometer = safe_float(first(odo, "mileageInKm", "value", "distance", "odometer", default=first(root, "odometer", default=None)))
+
+        vehicle_state = state_text(first(root, "state", default=first(overall, "vehicleState", default="Unknown")))
         parking_state = state_text(first(parking, "state", "parkingState", default="Unknown"))
-        address = first(parking, "address", "formattedAddress", "location.address", default="")
-        latitude = safe_float(first(parking, "latitude", "lat", "coordinates.latitude", "location.latitude", default=None))
-        longitude = safe_float(first(parking, "longitude", "lon", "lng", "coordinates.longitude", "location.longitude", default=None))
+        address = first(parking, "formattedAddress", "address", "location.address", default="")
+        latitude = safe_float(first(gps, "latitude", "lat", default=first(parking, "latitude", "lat", default=None)))
+        longitude = safe_float(first(gps, "longitude", "lon", "lng", default=first(parking, "longitude", "lon", "lng", default=None)))
 
         ac_state = state_text(first(ac, "state", "status", "active", default="Unknown"))
-        target_temp = safe_float(first(ac, "targetTemperature", "targetTemperatureCelsius", "temperature", default=None))
+        target = first(ac, "targetTemperature", "targetTemperatureCelsius", "temperature", default=first(heat, "targetTemperature", "targetTemperatureCelsius", "temperature", default=None))
+        target_temp = number_from(target, "value", "celsius", "temperature")
         heat_state = state_text(first(heat, "state", "status", "active", default="Unknown"))
         vent_state = state_text(first(vent, "state", "status", "active", default="Unknown"))
-
-        captured = safe_str(first(data, "timestamp", "capturedAt", "lastUpdated", default=""))
+        captured = safe_str(first(status, "carCapturedTimestamp", default=first(root, "carCapturedTimestamp", default=first(odo, "carCapturedTimestamp", default=""))))
 
         return cls(
             vin=vin, name=name, license_plate=plate,

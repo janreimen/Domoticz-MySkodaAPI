@@ -1,12 +1,12 @@
 # MySkoda API Integration for Domoticz
 
-**Version: 0.0.3-alpha**
+**Version: 0.0.3-alpha.1**
 
 A read-only Domoticz Python plugin using the official Škoda MySkoda Public API directly.
 
 Repository: https://github.com/janreimen/Domoticz-MySkodaAPI
 
-## 0.0.3-alpha
+## 0.0.3-alpha.1
 
 This release builds on the 0.0.2-alpha architecture/refactor and concentrates on reliability:
 
@@ -59,7 +59,7 @@ sudo systemctl restart domoticz
 - Poll Interval: 15–60 minutes; default 30
 - Debug: Off / Basic / Verbose
 
-The plugin remains read-only in 0.0.3-alpha. It does not send commands to the vehicle.
+The plugin remains read-only in 0.0.3-alpha.1. It does not send commands to the vehicle.
 
 ## State cache
 

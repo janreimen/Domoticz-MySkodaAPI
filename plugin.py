@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.0.3-alpha"
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.0.3-alpha.1"
     externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
 <description>
 <h2>MySkoda API Integration</h2><br/>
@@ -129,6 +129,8 @@ class BasePlugin:
         self.logger.Debug("Polling MySkoda API")
         result = self.api.fetch_vehicle()
         self.api_rate = result.rate_text
+        if result.api_key_expires_at:
+            self.api_key_expiry = result.api_key_expires_at
 
         if not result.ok:
             self._set_failure(result)

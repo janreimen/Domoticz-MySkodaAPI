@@ -10,7 +10,7 @@ __pycache__/
 .env
 .env.*
 *.secret
-
+myskoda_last_state.json
 # Local Domoticz configuration
 config.local.py
 local_config.
