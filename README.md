@@ -1,12 +1,12 @@
 # MySkoda API Integration for Domoticz
 
-**Version: 0.0.3.5-alpha.4**
+**Version: 0.4.0-alpha.1**
 
 A read-only Domoticz Python plugin using the official Škoda MySkoda Public API directly.
 
 Repository: https://github.com/janreimen/Domoticz-MySkodaAPI
 
-## 0.0.3.5-alpha.1
+## 0.4.0-alpha.1.1
 
 This release builds on the 0.0.2-alpha architecture/refactor and concentrates on reliability:
 
@@ -59,7 +59,7 @@ sudo systemctl restart domoticz
 - Poll Interval: 15–60 minutes; default 30
 - Debug: Off / Basic / Verbose
 
-The plugin remains read-only in 0.0.3.5-alpha.1. It does not send commands to the vehicle.
+The plugin remains read-only in 0.4.0-alpha.1.1. It does not send commands to the vehicle.
 
 ## State cache
 
@@ -90,10 +90,13 @@ The following unit numbers remain unchanged from earlier versions:
 | 17 | Target Temperature |
 | 18 | Auxiliary Heating |
 | 19 | Active Ventilation |
-| 20 | Vehicle Captured |
-| 21 | API Key Expiry |
+| 20 | Vehicle Captured (elapsed seconds since vehicle data capture) |
+| 21 | API Key Expiry (days remaining) |
 | 22 | API Rate Limit |
-| 23 | API Status |
+| 42 | API Rate Remaining |
+| 43 | API Rate Reset In (seconds) |
+| 44 | API Key Status |
+| 23 | API Status (HTTP code + meaning) |
 
 ## Security
 
@@ -102,7 +105,7 @@ Never paste the API key into an issue, log, screenshot, Git repository, or publi
 See `SECURITY.md` for reporting security issues.
 
 
-## Daily distance counters (0.0.3.5-alpha.1)
+## Daily distance counters (0.4.0-alpha.1.1)
 
 The plugin keeps a persistent odometer baseline and calculates positive odometer deltas between successful API readings. It exposes:
 
@@ -113,7 +116,7 @@ The plugin keeps a persistent odometer baseline and calculates positive odometer
 The baseline is stored in `myskoda_distance_state.json` in the Domoticz plugin HomeFolder. Plugin restarts do not reset the current day's distance. Negative or implausibly large odometer jumps are ignored.
 
 
-## Smart states (0.0.3.5-alpha.4)
+## Smart states (0.4.0-alpha.1)
 
 The plugin exposes semantic, read-only state sensors. These are intentionally Text devices so dashboard clicks cannot become vehicle commands.
 
@@ -122,3 +125,20 @@ The plugin exposes semantic, read-only state sensors. These are intentionally Te
 - **Data Quality:** `GOOD`, `STALE`, `ERROR`, `UNKNOWN`
 
 When the API temporarily fails, the last-known-good vehicle state is retained and Data Quality changes to `STALE`. The plugin does not replace valid vehicle values with `UNKNOWN` merely because a polling request failed.
+
+
+## 0.4.0-alpha.1
+
+Adds complete vehicle telemetry for the current MySkoda Public API, including charging/battery fields when supported, engine/fuel type, telemetry timestamps, API partial-data errors, vehicle capability indicators, and supported remote-operation names. Charging is read-only in this release; no remote commands are sent.
+
+
+### API diagnostics
+
+- **Vehicle Captured** is a live elapsed-time value in seconds, calculated from the API's `carCapturedTimestamp` to the current time.
+- **API Key Expiry** is a numeric value in days remaining. The configurable warning threshold is `API_KEY_EXPIRY_WARNING_DAYS` (default: 30 days). Configure a Domoticz notification/threshold on this sensor if desired.
+- **API Rate Remaining** exposes the authoritative `RateLimit-Remaining` header as a numeric sensor.
+- **API Rate Reset In** counts down the authoritative `RateLimit-Reset` value in seconds. The countdown is updated between API polls.
+- **API Status** includes the HTTP return code and its meaning, for example `200 OK`, `401 Unauthorized / API key expired`, or `429 Too Many Requests / rate limited`.
+- **API Key Status** is a native Domoticz Alert sensor: green `OK`, yellow `WARNING` when expiry is at or below the configurable `API_KEY_EXPIRY_WARNING_DAYS` threshold, red `EXPIRED`, and gray `UNKNOWN` when no expiry is known.
+
+The current MyŠkoda API documentation states that `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` are authoritative, and that successful responses provide `X-API-Key-Expires-At`.

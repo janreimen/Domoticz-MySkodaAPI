@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.4.0-alpha.3
+- Added unit 44 `API Key Status` as a native Domoticz General/Alert sensor.
+- Alert levels: green `OK`, yellow `WARNING` at or below `API_KEY_EXPIRY_WARNING_DAYS` (default 30 days), red `EXPIRED`, gray `UNKNOWN`.
+- Kept unit 21 `API Key Expiry` as a numeric days-remaining Custom Sensor.
+
+## 0.4.0-alpha.2
+- Vehicle Captured is now elapsed seconds since the API vehicle capture timestamp.
+- API Key Expiry is now numeric days remaining, with configurable warning threshold `API_KEY_EXPIRY_WARNING_DAYS` (default 30 days).
+- API Rate Remaining and API Rate Reset In are exposed as dedicated numeric sensors (units 42/43).
+- API Status now includes the HTTP return code and meaning.
+
+## 0.4.0-alpha.1 - Native read-only multistate sensors
+
+- Replaces semantic Text state devices with native Domoticz Selector Switch devices for vehicle state telemetry.
+- Preserves the existing unit numbers 1-41.
+- Adds automatic migration of the affected existing Text devices to selector devices.
+- Selector definitions are populated from MySkoda API state and are never translated into MySkoda commands.
+- Adds `onCommand()` handling that rejects local selector changes and restores the last API-derived state when cached data is available.
+- Keeps numeric telemetry as Percentage, Custom Sensor and Distance Counter devices.
+- Changes Target Temperature to a read-only Custom Sensor in °C.
+
+> Note: Domoticz selector widgets are inherently interactive in the UI. This release makes them **API/read-only**: selecting a value does not execute a vehicle command, and the next refresh restores the API value.
+
+# Changelog
+
+## 0.4.0-alpha.3
+- Added unit 44 `API Key Status` as a native Domoticz General/Alert sensor.
+- Alert levels: green `OK`, yellow `WARNING` at or below `API_KEY_EXPIRY_WARNING_DAYS` (default 30 days), red `EXPIRED`, gray `UNKNOWN`.
+- Kept unit 21 `API Key Expiry` as a numeric days-remaining Custom Sensor.
+
+
+## 0.0.4-alpha
+
+- Expanded vehicle telemetry model.
+- Added charging state, battery SoC, electric range, charging connection, target SoC and charge mode when supported by the vehicle.
+- Added engine/fuel type.
+- Added telemetry capture timestamps.
+- Added API partial-data error reporting from `errors[]`.
+- Added API capability summary.
+- Added supported remote-operation reporting without executing commands.
+- Added `charging` to the vehicle detail include list.
+- Preserved all existing unit IDs 1-41.
+- Remains read-only.
+
+
 ## 0.0.3.5-alpha.4
 
 - Changed Fuel Range (unit 10) and Total Range (unit 11) to Domoticz Custom Sensor devices.
@@ -18,6 +63,12 @@
 - Ignores negative and implausibly large odometer jumps.
 
 # Changelog
+
+## 0.4.0-alpha.3
+- Added unit 44 `API Key Status` as a native Domoticz General/Alert sensor.
+- Alert levels: green `OK`, yellow `WARNING` at or below `API_KEY_EXPIRY_WARNING_DAYS` (default 30 days), red `EXPIRED`, gray `UNKNOWN`.
+- Kept unit 21 `API Key Expiry` as a numeric days-remaining Custom Sensor.
+
 
 ## 0.0.3.5-alpha
 

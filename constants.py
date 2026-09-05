@@ -1,4 +1,4 @@
-PLUGIN_VERSION = "0.0.3.5-alpha.4"
+PLUGIN_VERSION = "0.4.0-alpha.3"
 PLUGIN_KEY = "MySkodaAPI"
 PLUGIN_NAME = "MySkoda API Integration"
 PLUGIN_URL = "https://github.com/janreimen/Domoticz-MySkodaAPI"
@@ -9,11 +9,12 @@ API_TIMEOUT = 30
 DEFAULT_POLL_MINUTES = 30
 MIN_POLL_MINUTES = 15
 MAX_POLL_MINUTES = 60
+API_KEY_EXPIRY_WARNING_DAYS = 30
 USER_AGENT = "Domoticz-MySkodaAPI/{}".format(PLUGIN_VERSION)
 
 API_INCLUDE = [
     "info", "status", "fuelStatus", "odometer", "parkingPosition",
-    "airConditioning", "auxiliaryHeating", "activeVentilation",
+    "airConditioning", "auxiliaryHeating", "activeVentilation", "charging",
 ]
 
 # Existing unit IDs are intentionally preserved for upgrade compatibility.
@@ -46,6 +47,22 @@ UNITS = {
     "vehicle_security": 26,
     "climate_state": 27,
     "data_quality": 28,
+    "fuel_type": 29,
+    "charging_state": 30,
+    "battery_soc": 31,
+    "electric_range": 32,
+    "charging_connected": 33,
+    "charge_target": 34,
+    "charge_mode": 35,
+    "charging_captured": 36,
+    "fuel_captured": 37,
+    "odometer_captured": 38,
+    "api_capabilities": 39,
+    "api_errors": 40,
+    "supported_operations": 41,
+    "api_rate_remaining": 42,
+    "api_rate_reset": 43,
+    "api_key_status": 44,
 }
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
