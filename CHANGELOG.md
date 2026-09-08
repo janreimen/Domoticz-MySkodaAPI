@@ -1,79 +1,336 @@
-hangelog
+# Changelog
 
-All notable changes to the MySkoda API Integration for Domoticz are documented here.
+All notable changes to **Domoticz-MySkodaAPI** are documented in this file.
 
-## 0.4.1
+The project follows [Semantic Versioning](https://semver.org/) where practical.
 
-- Production cleanup release based on 0.4.0-alpha.3.
-- API Status now includes the HTTP return code and, when supplied by the MySkoda API, the RFC problem type (for example `rate-limit-exceeded` or `vehicle-not-accepting-requests`).
-- Added repository hygiene rules for runtime state, archives, Python caches and local editor files.
-- Kept Domoticz units 1–44 and the read-only telemetry model unchanged.
-- Documentation aligned with the actual 0.4.1 plugin configuration and device model.
+* **Alpha** releases are development releases and may contain architectural or device-model changes.
+* **Beta** releases are intended for real-world use but may still introduce changes before 1.0.0.
+* **1.0.0** will mark the first production-stable release with a frozen device model and a strong commitment to upgrade compatibility.
 
-## 0.4.0-alpha.3
+---
 
-- Added unit 44 `API Key Status` as a native Domoticz General/Alert sensor.
-- Alert levels: green `OK`, yellow `WARNING` at or below `API_KEY_EXPIRY_WARNING_DAYS` (default 30 days), red `EXPIRED`, gray `UNKNOWN`.
-- Kept unit 21 `API Key Expiry` as a numeric days-remaining Custom Sensor.
+# Release History
 
-## 0.4.0-alpha.2
+## [0.4.1] — 2026-09-08
 
-- Vehicle Captured is now elapsed seconds since the API vehicle capture timestamp.
-- API Key Expiry is now numeric days remaining, with configurable warning threshold `API_KEY_EXPIRY_WARNING_DAYS` (default 30 days).
-- API Rate Remaining and API Rate Reset In are exposed as dedicated numeric sensors (units 42/43).
-- API Status includes the HTTP return code and meaning.
+### First Stable Beta
 
-## 0.4.0-alpha.1
+The first release considered suitable for longer-running real-world use.
 
-- Replaced semantic Text state devices with native Domoticz Selector Switch devices for vehicle state telemetry.
-- Preserved existing unit numbers 1–41 and migrated affected devices automatically.
-- Selector controls are telemetry-only; no MySkoda vehicle commands are sent.
-- Target Temperature is a read-only Custom Sensor in °C.
+### Changed
 
-## 0.0.4-alpha
+* Production cleanup release based on `0.4.0-alpha.3`.
+* API Status now includes the HTTP return code.
+* API Status also reports the RFC problem type when supplied by the MyŠkoda API, including:
 
-- Expanded the normalized vehicle telemetry model with charging, battery SoC, electric range, charging connection, target SoC and charge mode where supported.
-- Added engine/fuel type, telemetry capture timestamps, API partial-data error reporting, API capability summary and supported-operation reporting.
-- Remains read-only.
+  * `rate-limit-exceeded`
+  * `vehicle-not-accepting-requests`
+* Documentation was aligned with the actual `0.4.1` plugin configuration and device model.
+* Domoticz units `1–44` remain unchanged.
+* The read-only telemetry model remains unchanged.
 
-## 0.0.3.5-alpha.4
+### Repository
 
-- Changed Fuel Range and Total Range to Domoticz Custom Sensor devices using explicit `km` units.
-- Preserved existing unit numbers.
+* Added repository hygiene rules for:
 
-## 0.0.3.5-alpha.3
+  * runtime state
+  * generated archives
+  * Python cache files
+  * local editor files
 
-- Added Custom Sensor handling for range values and migration support for the affected Domoticz devices.
+### Compatibility
 
-## 0.0.3.5-alpha.2
+* Existing Domoticz unit numbers are preserved.
+* No vehicle commands are sent to MyŠkoda.
+* Existing installations can continue using the established telemetry model.
 
-- Added semantic smart-state handling for vehicle telemetry.
+### Known Issues
 
-## 0.0.3.5-alpha.1
+* Changing Domoticz device characteristics during an upgrade can still cause the plugin to crash in some circumstances.
+* Device migration and device-type changes therefore require additional hardening before the project can be considered production-stable.
 
-- Added daily distance delta counters and persistent odometer state.
-- Rolls completed daily distance into Yesterday Distance at local midnight.
-- Ignores negative and implausibly large odometer jumps.
+See GitHub issue #6 for the current device-type migration problem.
 
-## 0.0.3.5-alpha
+---
 
-- Improved Domoticz device types and telemetry presentation.
+## [0.4.0-alpha.3] — 2026-09-05
 
-## 0.0.3-alpha.1
+### Added
 
-- Corrected MySkoda Public API authentication to use `X-API-Key`.
-- Corrected parsing of the current API response under the `vehicle` object.
-- Added parsing of API-key expiry and rate-limit response headers.
+* Added unit `44` — **API Key Status**.
+* Implemented the sensor as a native Domoticz General/Alert sensor.
+* Added API-key status levels:
 
-## 0.0.3-alpha
+  * `OK`
+  * `WARNING`
+  * `EXPIRED`
+  * `UNKNOWN`
+* Added configurable warning threshold through:
 
-- Added retry handling for HTTP 429 and transient 5xx responses.
-- Added `Retry-After`, exponential backoff, API error classification, rate-limit metadata and last-known-good state caching.
-- Existing Domoticz unit IDs remain unchanged.
+```text
+API_KEY_EXPIRY_WARNING_DAYS
+```
 
-## 0.0.2-alpha
+* Default warning threshold is **30 days**.
 
-- Introduced the refactored plugin architecture with separate API, vehicle-state, device-management and utility modules.
-- Preserved the original Domoticz units 1–23.
-- Kept the integration read-only and standard-library based.
+### Compatibility
+
+* Unit `21` — **API Key Expiry** remains available as a numeric days-remaining Custom Sensor.
+* Existing device units remain unchanged.
+
+---
+
+## [0.4.0-alpha.2] — 2026-09-05
+
+### Changed
+
+* Vehicle Captured is now represented as elapsed seconds since the vehicle capture timestamp supplied by the API.
+* API Key Expiry is now represented as numeric days remaining.
+* Added configurable API-key expiry warning threshold.
+* Default warning threshold is 30 days.
+
+### Added
+
+* Unit `42` — **API Rate Remaining**.
+* Unit `43` — **API Rate Reset In**.
+* API Status now includes the HTTP return code and its meaning.
+
+---
+
+## [0.4.0-alpha.1]
+
+### Changed
+
+* Replaced semantic Text state devices with native Domoticz Selector Switch devices for vehicle-state telemetry.
+* Preserved existing Domoticz unit numbers `1–41`.
+* Added automatic migration for affected existing devices.
+* Selector Switch controls remain telemetry-only.
+* Selector controls do **not** send commands to the vehicle.
+
+### Added
+
+* Target Temperature is represented as a read-only Domoticz Custom Sensor.
+* Target Temperature uses degrees Celsius (`°C`).
+
+### Design principle
+
+The Selector Switch implementation provides a native Domoticz representation of vehicle states while deliberately keeping the integration read-only.
+
+---
+
+## [0.3.0-alpha4] — 2026-09-05
+
+### Release
+
+* Released the `0.3.0-alpha4` development milestone.
+* Continued the transition toward a more complete and structured vehicle telemetry model.
+
+### Note
+
+This release formed part of the rapid architecture and telemetry development leading to the `0.4.x` beta series.
+
+---
+
+## [0.0.4-alpha]
+
+### Added
+
+Expanded the normalized vehicle telemetry model with:
+
+* charging state
+* battery state of charge
+* electric range
+* charging connection
+* target state of charge
+* charge mode where supported
+* engine/fuel type
+* telemetry capture timestamps
+* API partial-data error reporting
+* API capability summary
+* supported-operation reporting
+
+### Design
+
+* Integration remains read-only.
+* No vehicle commands are issued.
+
+---
+
+## [0.0.3.5-alpha.4]
+
+### Changed
+
+* Changed **Fuel Range** to a Domoticz Custom Sensor.
+* Changed **Total Range** to a Domoticz Custom Sensor.
+* Explicitly use `km` as the unit.
+* Preserved existing Domoticz unit numbers.
+
+---
+
+## [0.0.3.5-alpha.3]
+
+### Added
+
+* Added Custom Sensor handling for range values.
+* Added migration support for affected Domoticz devices.
+
+---
+
+## [0.0.3.5-alpha.2]
+
+### Added
+
+* Added semantic smart-state handling for vehicle telemetry.
+* Improved the interpretation of vehicle state values before publishing them to Domoticz.
+
+---
+
+## [0.0.3.5-alpha.1]
+
+### Added
+
+* Added persistent odometer state.
+* Added daily distance delta calculation.
+* Added **Today's Distance**.
+* Added **Yesterday's Distance**.
+
+### Changed
+
+* Completed daily distance is rolled into Yesterday Distance at local midnight.
+* Negative odometer changes are ignored.
+* Implausibly large odometer jumps are ignored.
+
+### Design
+
+The plugin now maintains a small amount of local state in order to provide useful derived vehicle information rather than simply exposing raw API values.
+
+---
+
+## [0.0.3.5-alpha]
+
+### Changed
+
+* Improved Domoticz device types.
+* Improved telemetry presentation.
+* Continued migration toward semantically correct Domoticz devices.
+
+---
+
+## [0.0.3-alpha.1]
+
+### Fixed
+
+* Corrected MyŠkoda Public API authentication to use:
+
+```text
+X-API-Key
+```
+
+* Corrected parsing of the current MyŠkoda API response under the `vehicle` object.
+
+### Added
+
+* API-key expiry header parsing.
+* API rate-limit response header parsing.
+
+---
+
+## [0.0.3-alpha]
+
+### Added
+
+* HTTP `429` retry handling.
+* Transient HTTP `5xx` retry handling.
+* `Retry-After` support.
+* Exponential backoff.
+* API error classification.
+* API rate-limit metadata.
+* Last-known-good vehicle-state caching.
+
+### Compatibility
+
+* Existing Domoticz unit IDs remain unchanged.
+
+### Reliability
+
+Temporary MyŠkoda API failures no longer have to result in immediate loss of the previously known vehicle state.
+
+---
+
+## [0.0.2-alpha]
+
+### Architecture
+
+Introduced the refactored plugin architecture with separate responsibilities for:
+
+* API communication
+* vehicle-state processing
+* Domoticz device management
+* utilities
+* constants
+
+### Compatibility
+
+* Preserved the original Domoticz units `1–23`.
+
+### Design
+
+* Integration remains read-only.
+* Project remains standard-library based.
+* API and Domoticz responsibilities are separated to allow future expansion.
+
+---
+
+## [0.0.1.1-alpha] — 2026-09-04
+
+### Development Release
+
+* First intermediate development release following the initial beta.
+* Established the foundation for the subsequent API, telemetry and architecture refactoring.
+
+---
+
+## [0.0.1-beta] — 2026-09-02
+
+### First Long-Running Beta
+
+* Adjusted Domoticz device definitions.
+* Established the first long-running beta implementation.
+* Began the transition from an experimental integration toward a continuously running Domoticz plugin.
+
+---
+
+# Current Status
+
+## 0.4.1 — First Stable Beta
+
+The project currently provides a **read-only MyŠkoda telemetry integration for Domoticz**.
+
+The current architecture includes:
+
+* MyŠkoda API communication
+* API-key authentication
+* retry and backoff handling
+* rate-limit handling
+* last-known-good state handling
+* normalized vehicle telemetry
+* battery information
+* charging information
+* fuel and range information
+* odometer tracking
+* daily distance calculation
+* vehicle-state telemetry
+* climate-related telemetry
+* API diagnostics
+* API-key expiry monitoring
+* API rate-limit monitoring
+* native Domoticz device types
+* device migration support
+* stable Domoticz unit numbering
+
+The project currently remains **read-only** with respect to the vehicle.
+
+---
+
 
