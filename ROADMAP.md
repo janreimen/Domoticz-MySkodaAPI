@@ -1,153 +1,371 @@
 # Roadmap
 
-The roadmap below describes the intended direction of the project. Features marked as planned are not considered implemented until they appear in a released version.
+The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
+
+The project is currently at **0.4.1 — First Stable Beta**.
+
+The roadmap deliberately separates:
+
+* **Planned** — intended development target.
+* **Potential** — useful future functionality, but not yet committed.
+* **API-dependent** — dependent on capabilities exposed by the MyŠkoda Public API.
+* **Deferred** — deliberately postponed until the architecture or API is ready.
+
+Features are **not considered implemented** until they are released in a version of the plugin.
 
 ---
 
-## [0.4.2] — Stabilisation / Maintenance
+# Current State — 0.4.1
 
-### Planned
+## 0.4.1 — First Stable Beta
 
-The immediate priority after `0.4.1` is to harden the existing device lifecycle.
+The current release provides a mature **read-only** MyŠkoda integration for Domoticz.
 
-### Focus
+The current implementation includes:
 
-* Fix Domoticz device-type migration crashes.
-* Make device characteristic changes safe.
-* Improve upgrade handling.
-* Ensure existing IDX/unit assignments remain stable.
-* Improve provisioning idempotency.
-* Ensure an existing device is reused instead of creating duplicates.
-* Improve error handling around Domoticz device updates.
-* Verify clean installation and upgrade paths.
+* MyŠkoda Public API integration.
+* `X-API-Key` authentication.
+* VIN-based vehicle identification.
+* HTTP 429 handling.
+* transient HTTP 5xx handling.
+* `Retry-After` handling.
+* bounded exponential backoff.
+* last-known-good vehicle state.
+* partial API response handling.
+* API rate-limit information.
+* API-key expiry information.
+* API-key health status.
+* API problem/status reporting.
+* vehicle telemetry.
+* fuel information.
+* range information.
+* odometer information.
+* daily and previous-day distance.
+* battery state of charge.
+* electric range.
+* charging state.
+* charging connection.
+* charge target.
+* charge mode.
+* climate information.
+* security information.
+* doors, windows and body-state information.
+* parking information.
+* GPS/location information.
+* telemetry timestamps.
+* API capabilities.
+* supported operations.
+* native Domoticz device types.
+* stable Domoticz unit assignments.
+* local runtime state for persistent calculations.
 
-### Goal
+The established Domoticz device model currently uses units **1–44**.
 
-> An existing `0.4.1` installation must be upgradeable without manual device repair.
+The integration remains intentionally **read-only**. Selector devices are telemetry displays and do not issue vehicle commands.
 
 ---
 
-# [0.5.x] — Complete Read-Only Integration
+# Immediate Priority
 
-## Goal
+## 0.4.2 — Stabilisation
 
-Complete the **read-only vehicle model** before introducing remote commands.
+### Status
 
-The planned vehicle model is:
+**Planned**
 
-```text
-Vehicle
-├── Status
-├── Battery
-├── Range
-├── Fuel
-├── Charging
-├── Doors
-├── Windows
-├── Lights
-├── Climate
-├── Parking
-├── Location
-└── Diagnostics
-```
+### Objective
 
-### Vehicle
+Harden the existing 0.4.x architecture before introducing new functionality.
 
-Potential additions/refinements:
+The immediate priority is the Domoticz device lifecycle.
 
-* complete vehicle status
-* connectivity state
-* last communication
-* telemetry age
-* vehicle capabilities
-* supported operations
+GitHub issue #6 currently documents a problem where changing device characteristics during an upgrade can cause the plugin to crash. This needs to be resolved before the device model can be considered sufficiently stable for further expansion.
 
-### Battery
+### Work
 
-* battery state of charge
-* electric range
-* battery-related status
-* target state of charge where available
+* Fix device-type migration crashes.
+* Make Domoticz device characteristic changes safe.
+* Improve device provisioning.
+* Make provisioning fully idempotent.
+* Reuse existing devices whenever possible.
+* Prevent accidental duplicate devices.
+* Preserve established unit/IDX assignments.
+* Improve device-update error handling.
+* Safely migrate existing installations.
+* Verify fresh installation behaviour.
+* Verify upgrade behaviour.
+* Verify recovery after interrupted provisioning.
+* Verify behaviour when a device has been manually modified in Domoticz.
 
-### Fuel
+### Acceptance criteria
 
-* fuel level
-* fuel range
-* total range
-* engine/fuel type
+A `0.4.1` installation should be upgradeable without:
 
-### Charging
-
-* charging state
-* charging connection
-* target state of charge
-* charge mode
-* charging-related timestamps
-
-### Doors / Body
-
-* lock state
-* door states
-* windows
-* trunk
-* bonnet
-* sunroof where available
-
-### Lights
-
-* exterior light state
-* relevant light states exposed by the API
-
-### Climate
-
-* climate state
-* target temperature
-* auxiliary heating
-* ventilation where supported
-
-### Parking / Location
-
-* parking state
-* GPS position where available
-* address where available
-* last known position
-
-### Diagnostics
-
-* API status
-* HTTP status
-* MyŠkoda problem type
-* API key status
-* API rate remaining
-* API rate reset
-* vehicle capture age
-* partial-data warnings
+* manually deleting devices,
+* manually recreating devices,
+* losing established unit assignments,
+* creating duplicate devices,
+* or crashing the plugin.
 
 ### Principle
 
-> `0.5.x` should answer the question:
-> **"Can Domoticz reliably show everything useful that MyŠkoda exposes without controlling the vehicle?"**
+> **Before adding more devices, make the existing device model bulletproof.**
 
 ---
 
-# [0.6.x] — Remote Commands
+# 0.5.x — Complete Read-Only Integration
+
+## Status
+
+**Planned**
+
+GitHub issue #3 defines `0.5.0` as the **complete read-only implementation**.
+
+The purpose of this milestone is to finish the vehicle information model before introducing remote commands.
 
 ## Goal
 
-Introduce controlled, verified write operations.
+> Domoticz should expose everything useful and reliably available from the MyŠkoda API without controlling the vehicle.
 
-Initial planned commands:
+---
 
-* Lock vehicle
-* Unlock vehicle
-* Start climate
-* Stop climate
-* Start charging
-* Stop charging
+## Vehicle
 
-### Command architecture
+### Planned
 
-Every command should follow:
+Complete and normalize:
+
+* vehicle state.
+* connectivity state.
+* last communication.
+* telemetry capture age.
+* vehicle capabilities.
+* supported operations.
+* vehicle identification.
+* API-provided vehicle metadata where useful.
+
+---
+
+## Battery
+
+### Planned
+
+* Battery state of charge.
+* Electric range.
+* Battery state.
+* Target state of charge where available.
+* Battery-related timestamps where useful.
+
+---
+
+## Fuel
+
+### Planned
+
+* Fuel level.
+* Fuel range.
+* Total range.
+* Engine/fuel type.
+* Fuel telemetry timestamp.
+
+---
+
+## Charging
+
+### Planned
+
+* Charging state.
+* Charging connection.
+* Charge target.
+* Charge mode.
+* Charging capture timestamp.
+* Additional charging information exposed by the API.
+
+---
+
+## Doors and Body
+
+### Planned / completion
+
+Ensure consistent representation of:
+
+* Lock state.
+* Doors.
+* Windows.
+* Trunk.
+* Bonnet.
+* Sunroof where available.
+
+---
+
+## Lights
+
+### Planned / completion
+
+Expose useful light-state information available from the API.
+
+Only stable and meaningful states should become Domoticz devices.
+
+---
+
+## Climate
+
+### Planned / completion
+
+* Climate state.
+* Target temperature.
+* Auxiliary heating.
+* Active ventilation.
+* Additional climate telemetry where supported.
+
+The integration remains read-only during this milestone.
+
+---
+
+## Parking and Location
+
+### Planned / completion
+
+* Parking state.
+* Parking address.
+* GPS position.
+* Last known position.
+* Location timestamp where available.
+
+---
+
+## Diagnostics
+
+### Planned / completion
+
+Continue improving:
+
+* API status.
+* HTTP status.
+* API problem type.
+* API-key status.
+* API-key expiry.
+* Rate-limit information.
+* Rate-limit remaining.
+* Rate-limit reset.
+* Vehicle capture age.
+* Partial API-data errors.
+* Data quality.
+
+---
+
+## Device Model
+
+The existing unit assignments must remain stable.
+
+New devices must:
+
+1. use the correct native Domoticz device type;
+2. have a meaningful name;
+3. use correct units;
+4. be provisioned idempotently;
+5. support migration;
+6. never unnecessarily replace an existing device.
+
+### Principle
+
+> **The Domoticz device model is an interface contract.**
+
+Once a unit/IDX has been released, changing its meaning should be treated as a breaking change.
+
+---
+
+# 0.5.x — Architecture Hardening
+
+While completing the read-only model, the internal architecture should continue moving toward clearly separated responsibilities.
+
+Target architecture:
+
+```text
+MyŠkoda API
+     │
+     ▼
+API Client
+     │
+     ▼
+Vehicle Response
+     │
+     ▼
+Normalization
+     │
+     ▼
+Vehicle State / Snapshot
+     │
+     ├──────────────┐
+     ▼              ▼
+Provisioning     Diagnostics
+     │
+     ▼
+Domoticz
+```
+
+The goal is to avoid coupling raw API structures directly to Domoticz devices.
+
+This will make future API changes easier to handle.
+
+---
+
+# 0.6.x — Remote Commands
+
+## Status
+
+**Planned**
+
+GitHub issue #4 defines the next major functional step as remote commands.
+
+This is the point where the plugin changes from:
+
+```text
+MyŠkoda API
+      ↓
+Domoticz
+```
+
+to:
+
+```text
+MyŠkoda API
+      ↕
+Domoticz
+```
+
+## Initial command set
+
+### Vehicle
+
+* Lock.
+* Unlock.
+
+### Climate
+
+* Start climate.
+* Stop climate.
+
+### Charging
+
+* Start charging.
+* Stop charging.
+
+Additional commands should only be introduced when their API behaviour is well understood.
+
+---
+
+# Command Architecture
+
+Commands must never be implemented as a simple:
+
+```text
+Domoticz click
+    ↓
+HTTP request
+```
+
+Instead:
 
 ```text
 Domoticz action
@@ -159,10 +377,16 @@ Capability check
 Command validation
       │
       ▼
+Safety checks
+      │
+      ▼
 MyŠkoda API
       │
       ▼
-Command result
+API response
+      │
+      ▼
+Verification
       │
       ▼
 Vehicle state refresh
@@ -171,83 +395,141 @@ Vehicle state refresh
 Domoticz update
 ```
 
-### Safety requirements
+## Safety requirements
 
-* Do not expose commands unsupported by the vehicle.
-* Do not treat a successful HTTP request as proof that the vehicle executed the command.
-* Verify command results where the API allows it.
-* Refresh vehicle state after commands.
-* Clearly expose command failures.
-* Prevent accidental repeated commands where appropriate.
-* Preserve read-only functionality if command support becomes temporarily unavailable.
+* Do not expose unsupported commands.
+* Do not assume every vehicle supports every operation.
+* Validate command availability before sending.
+* Handle API failures explicitly.
+* Handle rate limits.
+* Prevent uncontrolled command repetition.
+* Refresh vehicle state after a command.
+* Verify command execution where the API allows it.
+* Clearly report unsuccessful commands.
+* Never silently convert a failed command into a successful Domoticz state.
 
 ### Principle
 
-> **A command is not successful until its result can be verified.**
+> **A successful HTTP request is not necessarily a successful vehicle command.**
 
 ---
 
-# [0.7.x] — Automation & Advanced Vehicle Features
+# 0.7.x — Advanced Vehicle Features
 
-This milestone is intentionally less prescriptive.
+## Status
 
-Potential features include:
+**Potential / Planned**
 
-### Notifications
+After remote commands are stable, the integration can start making more use of Domoticz automation.
 
-* vehicle unlocked
-* charging stopped
-* charging failed
-* API key approaching expiration
-* vehicle unavailable
-* stale vehicle data
-* maintenance approaching
+Potential areas include:
 
-### Domoticz automation
+## Notifications
 
-Potential triggers for:
+Potential notifications:
 
-* vehicle arrival
-* vehicle departure
-* charging state changes
-* low battery
-* low fuel
-* vehicle lock state
-* climate state
+* vehicle unlocked.
+* charging stopped.
+* charging failed.
+* vehicle unavailable.
+* stale vehicle data.
+* API key approaching expiration.
+* API key expired.
+* maintenance approaching.
+* low battery.
+* low fuel.
 
-### Smart charging
-
-Potential future functionality:
-
-* charging target
-* controlled start/stop
-* charging schedules
-* automation based on electricity availability
-
-All such functionality depends on what the MyŠkoda API reliably supports.
+These should preferably be exposed through Domoticz states/events rather than requiring a separate notification framework.
 
 ---
 
-# [0.8.x] — Advanced Integration
+## Automation
 
-Potential areas:
+Potential automation triggers:
 
-## Multi-vehicle support
+* vehicle arrival.
+* vehicle departure.
+* charging started.
+* charging stopped.
+* low battery.
+* low fuel.
+* vehicle locked/unlocked.
+* climate started/stopped.
+* vehicle becomes unavailable.
 
-Move from a single vehicle model toward:
+---
+
+## Smart Charging
+
+### Potential
+
+If reliably supported by the API:
+
+* charging target.
+* controlled start/stop.
+* charging schedules.
+* charging based on household conditions.
+* charging based on electricity availability.
+* charging based on battery level.
+
+This area is explicitly **API-dependent**.
+
+The plugin should not attempt to emulate functionality that the API does not safely support.
+
+---
+
+# 0.8.x — Advanced Integration
+
+## Status
+
+**Potential / Planned**
+
+This milestone is intentionally flexible.
+
+The exact contents should depend on the capabilities discovered while implementing 0.5–0.7.
+
+---
+
+# Multi-Vehicle Support
+
+### Potential
+
+Move from a single configured vehicle toward:
 
 ```text
 MyŠkoda Account
+│
 ├── Vehicle A
+│   ├── Status
+│   ├── Battery
+│   ├── Charging
+│   ├── Climate
+│   └── Maintenance
+│
 ├── Vehicle B
+│   └── ...
+│
 └── Vehicle C
+    └── ...
 ```
 
-The architecture should allow multiple vehicles without duplicating the plugin implementation.
+The architecture should allow multiple vehicles without duplicating the complete plugin implementation.
 
-## Maintenance
+### Important
 
-Potential maintenance model:
+Multi-vehicle support should be introduced only after the single-vehicle device/provisioning model is stable.
+
+---
+
+# Maintenance
+
+## Status
+
+**Planned / API-dependent**
+
+A structured maintenance subsystem should be introduced when the MyŠkoda API exposes sufficiently reliable maintenance information.
+
+Potential structure:
 
 ```text
 Maintenance
@@ -259,250 +541,472 @@ Maintenance
 └── Next Service
 ```
 
-Possible values:
+Potential values:
 
-* due date
-* days remaining
-* distance remaining
-* due state
+* due date.
+* days remaining.
+* distance remaining.
+* due state.
+* service type.
+* maintenance status.
 
-## Historical information
+### Design goal
 
-Where the API provides suitable information:
-
-* charging history
-* trip information
-* distance history
-* consumption information
-* additional vehicle statistics
+Maintenance information should use correct native Domoticz sensor representations rather than arbitrary text or generic counters.
 
 ---
 
-# [0.9.x] — Release Candidate
+# Historical Data
 
-## Feature Freeze
+## Status
+
+**Potential / API-dependent**
+
+Where the API provides suitable data:
+
+* charging history.
+* trip information.
+* trip distance.
+* consumption.
+* vehicle statistics.
+* additional distance information.
+
+The plugin should distinguish between:
+
+1. data supplied directly by MyŠkoda;
+2. locally calculated values;
+3. locally persisted history.
+
+This distinction is important for data quality and troubleshooting.
+
+---
+
+# 0.8.x — Data Quality and Historical Intelligence
+
+Potential future improvements include:
+
+* better stale-data detection.
+* telemetry age.
+* state-change detection.
+* historical trend calculation.
+* charging-session detection.
+* distance statistics.
+* consumption statistics.
+
+Local calculations must never be confused with values directly reported by the API.
+
+---
+
+# 0.9.x — Release Candidate
+
+## Status
+
+**Planned**
 
 `0.9.x` should be the final stabilization phase before `1.0.0`.
 
-### No major new features
+## Feature Freeze
 
-Focus on:
+No major new functionality should be introduced during the release-candidate phase.
 
-* API compatibility
-* Domoticz compatibility
-* device migration
-* device provisioning
-* command reliability
-* error handling
-* performance
-* logging
-* testing
-* documentation
+Focus moves to:
 
-### Testing
+* reliability.
+* compatibility.
+* upgrade safety.
+* migration.
+* performance.
+* testing.
+* logging.
+* documentation.
+* security.
 
-The project should have automated tests for:
+---
 
-* API response parsing
-* vehicle-state normalization
-* partial API responses
-* error responses
-* rate limiting
-* retry handling
-* device provisioning
-* existing-device reuse
-* device migration
-* command handling
-* command verification
+# Automated Testing
 
-### Compatibility testing
+Before `1.0.0`, the project should have automated coverage for:
 
-Test at minimum:
+### API
+
+* normal responses.
+* partial responses.
+* malformed responses.
+* HTTP 429.
+* HTTP 5xx.
+* authentication errors.
+* API problem types.
+* rate-limit headers.
+* API-key expiry.
+* missing optional fields.
+
+### Vehicle normalization
+
+* battery.
+* charging.
+* fuel.
+* range.
+* climate.
+* security.
+* location.
+* timestamps.
+* missing data.
+
+### Domoticz provisioning
+
+* fresh installation.
+* existing installation.
+* device reuse.
+* duplicate prevention.
+* device migration.
+* changed device characteristics.
+* upgrade from previous versions.
+* interrupted provisioning.
+
+### Commands
+
+* capability detection.
+* validation.
+* successful command.
+* failed command.
+* timeout.
+* rate limiting.
+* verification.
+* state refresh.
+
+---
+
+# Compatibility Testing
+
+Before `1.0.0`, at minimum test:
 
 ```text
 Fresh installation
 Existing installation
 Upgrade from previous version
 Device characteristic migration
+Existing IDX reuse
 API failure
 Authentication failure
 Rate limiting
 Vehicle unavailable
 Partial API response
+Missing optional API fields
+Command failure
+Command verification
 ```
 
-### Goal
+The goal is that both:
 
-> `0.9.x` should be boring.
+```text
+Fresh installation
+```
 
-If a new installation and an existing installation both behave predictably for a long period, the project is ready for 1.0.
+and:
 
----
+```text
+Long-running installation upgraded through multiple releases
+```
 
-# [1.0.0] — Production Stable
-
-## Definition
-
-`1.0.0` will represent the first production-stable release of Domoticz-MySkodaAPI.
-
-### API
-
-* Stable authentication
-* Reliable polling
-* Retry handling
-* Rate-limit handling
-* Error classification
-* Graceful degradation
-* Stale-data handling
-
-### Vehicle
-
-* Complete supported telemetry
-* Stable normalized vehicle model
-* Battery
-* Range
-* Fuel
-* Charging
-* Doors
-* Windows
-* Lights
-* Climate
-* Parking
-* Location
-* Diagnostics
-
-### Commands
-
-* Supported remote commands
-* Capability detection
-* Command verification
-* Safe failure handling
-
-### Domoticz
-
-* Stable device model
-* Stable IDX/unit assignments
-* Safe provisioning
-* Safe upgrades
-* Device migration
-* No duplicate devices
-* Correct native Domoticz device types
-
-### Architecture
-
-* API layer
-* normalized vehicle-state layer
-* provisioning/device layer
-* Domoticz client layer
-* command layer
-* configuration layer
-
-### Documentation
-
-* Installation
-* Configuration
-* API requirements
-* Device list
-* Device/unit mapping
-* Remote commands
-* Troubleshooting
-* Upgrade instructions
-* Security
-* Changelog
-* Roadmap
-
-### Principle
-
-> **1.0.0 is not defined by the number of sensors. It is defined by reliability, compatibility and predictable behaviour.**
+behave predictably.
 
 ---
 
-# Post-1.0 Development
+# 0.9.x — Documentation Freeze
 
-After `1.0.0`, development should focus on extending functionality without breaking existing installations.
+Before 1.0:
 
-Potential `1.x` features include:
+* README must describe the actual current feature set.
+* CHANGELOG must contain the complete release history.
+* ROADMAP must describe future development.
+* SECURITY.md must be current.
+* Device/unit mapping must be documented.
+* Configuration options must be documented.
+* Remote commands must be documented.
+* Upgrade procedures must be documented.
+* Known limitations must be documented.
 
-### Energy & Charging
+Documentation must describe released behaviour, not planned behaviour as if it already existed.
 
-* charging history
-* charging energy
-* consumption statistics
-* charging cost estimation
-* charging analytics
+---
 
-### Trips
+# 1.0.0 — Production Stable
 
-Where supported by the API:
+## Status
 
-* trip history
-* trip distance
-* trip consumption
-* trip statistics
+**Long-term target**
 
-### Location
+`1.0.0` represents the first production-stable release.
 
-* geofencing
-* home/work detection
-* arrival/departure events
-* location-based automation
+It is not defined by the number of Domoticz devices.
 
-### Automation
+It is defined by:
 
-* advanced charging automation
-* climate automation
-* vehicle arrival/departure automation
-* notification rules
+> **Reliability, compatibility, predictable behaviour and safe upgrades.**
 
-### Vehicle Support
+---
 
-Expand compatibility with additional Škoda vehicles as their MyŠkoda API representations become available.
+## API
+
+1.0 should provide:
+
+* stable authentication.
+* reliable polling.
+* bounded retries.
+* rate-limit handling.
+* API error classification.
+* graceful degradation.
+* stale-data handling.
+* partial-response handling.
+
+---
+
+## Vehicle
+
+1.0 should provide the complete supported telemetry model:
+
+* vehicle state.
+* battery.
+* range.
+* fuel.
+* charging.
+* doors.
+* windows.
+* lights.
+* climate.
+* parking.
+* location.
+* diagnostics.
+* maintenance where reliably available.
+
+---
+
+## Commands
+
+1.0 should provide only commands that are:
+
+* supported by the API;
+* supported by the vehicle;
+* safely validated;
+* properly handled on failure;
+* verified where possible.
+
+---
+
+## Domoticz
+
+1.0 should guarantee:
+
+* stable device model.
+* stable unit/IDX assignments.
+* idempotent provisioning.
+* safe upgrades.
+* safe migration.
+* no unnecessary duplicate devices.
+* correct native Domoticz device types.
+* predictable state updates.
+
+---
+
+## Architecture
+
+The architecture should have clearly separated:
+
+```text
+API Client
+     │
+     ▼
+Vehicle Data / Normalization
+     │
+     ▼
+Vehicle State / Snapshot
+     │
+     ├── Diagnostics
+     │
+     ├── Commands
+     │
+     └── Provisioning
+              │
+              ▼
+           Domoticz
+```
+
+---
+
+# 1.0.0 Compatibility Contract
+
+After 1.0.0, the following should be treated as compatibility-sensitive:
+
+### Domoticz device units
+
+Existing unit assignments should not be casually changed.
+
+### Device meaning
+
+Changing what an existing unit represents should be treated as a breaking change.
+
+### Configuration
+
+Existing configuration should remain valid wherever possible.
+
+### API behaviour
+
+API changes should be isolated behind the API/normalization layer.
+
+### Runtime state
+
+Changes to local state files should include migration or compatibility handling when required.
+
+---
+
+# Post-1.0 — 1.x Development
+
+## Principle
+
+After `1.0.0`, new functionality should be added **without breaking existing installations**.
+
+Potential 1.x development includes:
+
+---
+
+## Energy & Charging
+
+Potential:
+
+* charging history.
+* charging energy.
+* consumption statistics.
+* charging cost estimation.
+* charging analytics.
+* charging sessions.
+* charging efficiency.
+
+---
+
+## Trips
+
+If reliable API support exists:
+
+* trip history.
+* trip distance.
+* trip consumption.
+* trip statistics.
+* trip start/end information.
+
+---
+
+## Location
+
+Potential:
+
+* geofencing.
+* home detection.
+* work detection.
+* arrival events.
+* departure events.
+* location-based automation.
+
+---
+
+## Automation
+
+Potential:
+
+* advanced charging automation.
+* climate automation.
+* vehicle arrival automation.
+* vehicle departure automation.
+* notification rules.
+* maintenance reminders.
+
+---
+
+## Vehicle Compatibility
+
+The plugin should gradually support additional Škoda vehicles as their MyŠkoda API representations become available.
+
+The architecture should avoid model-specific assumptions wherever possible.
+
+Potential future direction:
+
+```text
+MyŠkoda
+│
+├── Octavia
+├── Superb
+├── Kodiaq
+├── Karoq
+├── Enyaq
+└── Future supported vehicles
+```
+
+Actual compatibility remains dependent on the API.
+
+---
+
+# What Will NOT Be Done Automatically
+
+The plugin will not expose every field returned by the API simply because it exists.
+
+A value should become a Domoticz device only when it is:
+
+* useful;
+* sufficiently stable;
+* understandable;
+* semantically meaningful;
+* supported by a suitable Domoticz device type.
+
+This prevents the integration from becoming an unmaintainable collection of raw API fields.
 
 ---
 
 # Development Principles
 
-The following principles should remain valid throughout the project.
+These principles apply throughout the project.
 
-## 1. Preserve existing Domoticz devices
+## 1. Preserve existing devices
 
-Existing unit/IDX assignments should be treated as stable API contracts.
+Existing Domoticz unit/IDX assignments are treated as compatibility contracts.
 
-## 2. Never create duplicate devices unnecessarily
+## 2. Provision idempotently
 
-Provisioning must be idempotent.
+Running the plugin repeatedly must not create duplicate devices.
 
-## 3. API failures must not destroy good data
+## 3. Preserve good data
 
-Temporary API failures should preserve the last known valid vehicle state where appropriate.
+Temporary API failures must not unnecessarily destroy valid last-known state.
 
-## 4. Read and write operations must remain clearly separated
+## 4. Separate read and write operations
 
-Telemetry and remote commands should never be mixed accidentally.
+Telemetry and remote commands must remain clearly separated.
 
-## 5. Commands must be verified
+## 5. Verify commands
 
-A successful HTTP response is not automatically proof of vehicle execution.
+A successful HTTP request is not automatically a successful vehicle operation.
 
-## 6. Use native Domoticz device types where possible
+## 6. Prefer native Domoticz types
 
-The plugin should integrate naturally into Domoticz rather than exposing raw API structures.
+Use the correct Domoticz sensor/device representation whenever possible.
 
-## 7. Do not expose every API field automatically
+## 7. Normalize API data
 
-Only useful, stable and semantically meaningful values should become Domoticz devices.
+Raw MyŠkoda responses should not leak directly into the Domoticz device layer.
 
-## 8. API changes must be expected
+## 8. Expect API evolution
 
-The MyŠkoda API may evolve. Parsing and normalization should therefore be tolerant of optional and partial data.
+Optional fields, partial responses and API changes must be handled gracefully.
 
-## 9. Standard library first
+## 9. Keep dependencies minimal
 
-Avoid unnecessary third-party dependencies unless they provide substantial value.
+The standard Python library should remain the default unless an external dependency provides substantial value.
 
 ## 10. Stability before features
 
-Especially approaching `1.0.0`, reliability and upgrade safety take priority over adding additional telemetry.
+Especially from `0.8.x` onward, reliability and upgrade safety take priority over adding more telemetry.
+
+## 11. Never make unsupported assumptions
+
+If the MyŠkoda API does not reliably expose a capability, the plugin should not pretend that it does.
 
 ---
 
@@ -510,64 +1014,82 @@ Especially approaching `1.0.0`, reliability and upgrade safety take priority ove
 
 ```text
 0.4.x
-  │
-  ├── Stabilize current beta
-  │
-  ▼
+ │
+ ├── Stabilize the existing Beta
+ │
+ ▼
 0.5.x
-  │
-  ├── Complete read-only integration
-  │
-  ▼
+ │
+ ├── Complete read-only integration
+ │
+ ▼
 0.6.x
-  │
-  ├── Remote commands
-  │
-  ▼
+ │
+ ├── Verified remote commands
+ │
+ ▼
 0.7.x
-  │
-  ├── Automation / advanced features
-  │
-  ▼
+ │
+ ├── Automation and advanced vehicle features
+ │
+ ▼
 0.8.x
-  │
-  ├── Multi-vehicle / maintenance / history
-  │
-  ▼
+ │
+ ├── Multi-vehicle
+ ├── Maintenance
+ └── Historical/advanced data
+ │
+ ▼
 0.9.x
-  │
-  ├── Feature freeze
-  ├── Testing
-  ├── Compatibility
-  └── Release candidate
-  │
-  ▼
+ │
+ ├── Feature freeze
+ ├── Testing
+ ├── Compatibility
+ ├── Documentation
+ └── Release Candidate
+ │
+ ▼
 1.0.0
-  │
-  └── Production stable
-  │
-  ▼
+ │
+ └── Production Stable
+ │
+ ▼
 1.x
-     └── New capabilities without breaking existing installations
+    └── New capabilities without breaking existing installations
 ```
 
 ---
 
-# Status Legend
+# Release Philosophy
 
-* **Released** — implemented in a published version.
-* **Planned** — explicitly targeted for a future release.
-* **Potential** — technically interesting future functionality, subject to API capabilities and project priorities.
-* **Not implemented** — not currently available.
+The project should evolve in three distinct phases.
+
+## 0.4.x — Stabilize
+
+Make the current architecture safe.
+
+## 0.5–0.8 — Expand
+
+Complete telemetry, introduce commands and then advanced functionality.
+
+## 0.9–1.0 — Harden
+
+Stop adding major features and prove that the plugin is reliable.
 
 ---
 
-# Current Project Direction
+# Final Goal
 
-The overall evolution of Domoticz-MySkodaAPI is:
+The long-term goal of **Domoticz-MySkodaAPI** is not simply to expose the largest possible number of MyŠkoda API fields.
+
+The goal is to provide:
+
+> **A reliable, maintainable, upgrade-safe and Domoticz-native bridge between the MyŠkoda Public API and home automation.**
+
+The desired evolution is:
 
 ```text
-Experimental API integration
+Experimental integration
         ↓
 Structured API client
         ↓
@@ -575,20 +1097,43 @@ Normalized vehicle model
         ↓
 Reliable telemetry
         ↓
-Native Domoticz devices
-        ↓
-Stable Beta
+Stable Domoticz devices
         ↓
 Complete read-only integration
         ↓
-Verified remote commands
+Verified vehicle commands
         ↓
-Advanced automation
+Automation
+        ↓
+Advanced vehicle integration
         ↓
 Release Candidate
         ↓
 Production Stable 1.0
+        ↓
+Long-term 1.x development
 ```
 
-The central goal is to build a **reliable, maintainable and upgrade-safe bridge between the MyŠkoda API and Domoticz**, rather than simply exposing as many API fields as possible.
+---
+
+# Status Legend
+
+| Status              | Meaning                                    |
+| ------------------- | ------------------------------------------ |
+| **Released**        | Already implemented in a published release |
+| **Planned**         | Intended development target                |
+| **Potential**       | Possible future functionality              |
+| **API-dependent**   | Depends on MyŠkoda API capabilities        |
+| **Deferred**        | Deliberately postponed                     |
+| **Not implemented** | Not currently available                    |
+
+---
+
+# Current Next Step
+
+**Next milestone: `0.4.2`**
+
+The immediate priority is **stability of the existing device/provisioning model**, especially safe device characteristic migration and upgrade handling.
+
+Only after that foundation is reliable should development proceed toward the `0.5.x` complete read-only milestone.
 
