@@ -1,472 +1,239 @@
-# Domoticz MySkoda API Integration
 
-A Domoticz Python plugin for integrating **Škoda vehicles through the MySkoda API** into Domoticz.
+da API Integration for Domoticz
 
-**Current release:** `0.4.1`
+**Version 0.4.1**
 
----
+A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
-## ⚠️ Project Status
+## Highlights
 
-This project is under active development.
-
-Version `0.4.1` represents the current development/release baseline and may still evolve as the MySkoda API changes.
-
-The plugin depends on services operated by Škoda and therefore functionality may change without notice if the upstream API changes.
-
----
-
-## Roadmap
-
-The goal of **Domoticz MySkoda API Integration** is to provide a reliable, maintainable and feature-complete MySkoda integration for Domoticz.
-
-Development is planned in incremental releases, with each release improving the plugin's architecture, reliability, vehicle data coverage and usability.
-
-### Completed / Current
-
-* [x] Initial Domoticz plugin architecture
-* [x] MySkoda API integration
-* [x] Authentication handling
-* [x] Vehicle discovery
-* [x] Initial vehicle data integration
-* [x] Domoticz device creation
-* [x] Improved error handling and logging
-* [x] Configuration and deployment documentation
-* [x] Security documentation
-* [x] Release `0.4.1`
-
-### Next Development Steps
-
-* [ ] Further improve API reliability and error handling
-* [ ] Improve authentication/session handling
-* [ ] Expand vehicle data coverage
-* [ ] Improve charging information and status handling
-* [ ] Improve vehicle state and lock/door information
-* [ ] Improve Domoticz device naming and presentation
-* [ ] Reduce unnecessary API requests and improve polling efficiency
-* [ ] Improve recovery from temporary MySkoda API failures
-* [ ] Improve diagnostics and logging
-* [ ] Add regression testing for API responses and vehicle data
-* [ ] Improve compatibility across supported Škoda models
-
-### Longer-Term Goals
-
-* [ ] Stable and maintainable API abstraction
-* [ ] Comprehensive coverage of available MySkoda vehicle data
-* [ ] Reliable long-running operation in Domoticz
-* [ ] Robust handling of upstream MySkoda API changes
-* [ ] Comprehensive automated testing
-* [ ] Production-ready stable release
-* [ ] Clear upgrade and migration path between releases
-
-### Development Philosophy
-
-The project prioritizes:
-
-1. **Reliability** — the plugin should continue operating despite temporary API failures.
-2. **Security** — credentials and authentication data must be handled safely.
-3. **Maintainability** — the codebase should remain understandable and modular.
-4. **Compatibility** — support should be extended across different Škoda vehicles where the API permits it.
-5. **Responsible API usage** — requests should be minimized and polling should respect the upstream service.
-6. **Domoticz integration quality** — vehicle information should be exposed as useful, predictable Domoticz devices.
-
-The roadmap is intentionally iterative. MySkoda API behaviour can change independently of this project, so individual features may be reprioritized as the upstream service evolves.
-
----
-
-## Features
-
-The plugin connects Domoticz to the MySkoda service and exposes available vehicle information as Domoticz devices.
-
-Depending on the vehicle and the information exposed by the MySkoda API, the plugin can provide:
-
-* Vehicle status
-* Battery state of charge
-* Electric driving range
-* Charging status
-* Charging information
-* Vehicle mileage
-* Lock status
-* Door status
-* Climate information
-* Vehicle location
-* Service information
-* Other vehicle data provided by the API
-
-The exact devices available depend on the vehicle, its equipment, the MySkoda account, and the current API implementation.
-
----
-
-## Supported Vehicles
-
-The plugin is intended for Škoda vehicles supported by the MySkoda platform.
-
-Support is not necessarily identical across all models.
-
-A particular value or function may be unavailable because:
-
-* The vehicle does not support it.
-* The vehicle configuration does not provide it.
-* MySkoda does not expose it for that vehicle.
-* The upstream API has changed.
-* The functionality is not yet implemented by this plugin.
-
----
+- Read-only vehicle telemetry; no remote vehicle commands are sent.
+- Authentication with the API's `X-API-Key` header.
+- Current API response format with `vehicle` data and optional partial-response `errors`.
+- Retry handling for HTTP 429 and transient 5xx responses.
+- `Retry-After` and exponential backoff support.
+- Last-known-good vehicle state cache.
+- API rate-limit and API-key expiry diagnostics.
+- RFC-style API problem types exposed in API Status when supplied by the API.
+- Native Domoticz selector devices for semantic states.
+- Native Domoticz Alert sensor for API-key health.
+- Daily and previous-day distance tracking.
+- Charging, battery, climate, security, fuel and telemetry diagnostics.
+- Python standard library only; no third-party runtime dependencies.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility.
 
 ## Requirements
 
-### Domoticz
+- Domoticz with Python plugin support.
+- Python 3.
+- A valid MySkoda API key.
+- The vehicle VIN.
+- Network access from Domoticz to the MySkoda API.
 
-A working Domoticz installation with Python plugin support is required.
-
-### Python
-
-Python 3 is required.
-
-Check your Python installation:
-
-```bash
-python3 --version
-```
-
-### MySkoda Account
-
-You need a valid MySkoda account with at least one associated vehicle.
-
-### Network Connectivity
-
-The Domoticz host must have outbound Internet access to communicate with the MySkoda services.
-
----
+No third-party Python package is required by the plugin.
 
 ## Installation
 
-Clone the repository into the Domoticz plugins directory.
-
-For example:
-
-```bash
-cd /opt/domoticz/plugins
-git clone https://github.com/janreimen/Domoticz-MySkodaAPI.git MySkodaAPI
-```
-
-The plugin directory should contain:
+Copy the complete plugin directory into the Domoticz `plugins` directory:
 
 ```text
-plugins/
-└── MySkodaAPI/
-    ├── plugin.py
-    ├── README.md
-    ├── DEPLOY.md
-    ├── SECURITY.md
-    ├── LICENSE
-    └── ...
+<domoticz>/plugins/Domoticz-MySkodaAPI/
 ```
 
-Restart Domoticz after installation.
+The directory must contain `plugin.py` and the supporting Python modules shipped with this release.
 
-For detailed deployment instructions, see:
+Restart Domoticz after installing or replacing the plugin.
 
-**[DEPLOY.md](DEPLOY.md)**
+## Configure the Domoticz hardware
 
----
+Add a new hardware instance for **MySkoda API Integration**.
 
-## Configuration
+The plugin configuration fields are:
 
-After installing the plugin:
+| Field | Description |
+|---|---|
+| API Key | MySkoda Public API key; stored by Domoticz as a password field |
+| VIN | Vehicle VIN |
+| Poll Interval (minutes) | Polling interval, default 30 minutes; accepted range 15–60 minutes |
+| Debug | Off, Basic or Verbose |
 
-1. Open the Domoticz web interface.
-2. Go to **Setup → Hardware**.
-3. Add a new hardware device.
-4. Select **MySkoda API Integration**.
-5. Enter the required configuration.
-6. Save the hardware configuration.
-7. Restart Domoticz if required.
+The plugin is intentionally **read-only**. Selector devices are telemetry displays, not controls. Commands from Domoticz are rejected and the selector is restored to the API-reported state.
 
-The plugin will authenticate against MySkoda and retrieve the vehicle information available to the configured account.
+## Device units
 
----
+The plugin deliberately keeps the established unit numbers:
 
-## Authentication
+| Unit | Device |
+|---:|---|
+| 1 | Vehicle |
+| 2 | Doors Locked |
+| 3 | Doors |
+| 4 | Windows |
+| 5 | Lights |
+| 6 | Trunk |
+| 7 | Bonnet |
+| 8 | Sunroof |
+| 9 | Fuel Level |
+| 10 | Fuel Range |
+| 11 | Total Range |
+| 12 | Odometer / Mileage |
+| 13 | Vehicle State |
+| 14 | Parking Address |
+| 15 | Parking GPS |
+| 16 | Air Conditioning |
+| 17 | Target Temperature |
+| 18 | Auxiliary Heating |
+| 19 | Active Ventilation |
+| 20 | Vehicle Captured |
+| 21 | API Key Expiry |
+| 22 | API Rate Limit |
+| 23 | API Status |
+| 24 | Today Distance |
+| 25 | Yesterday Distance |
+| 26 | Vehicle Security |
+| 27 | Climate State |
+| 28 | Data Quality |
+| 29 | Fuel / Engine Type |
+| 30 | Charging State |
+| 31 | Battery SoC |
+| 32 | Electric Range |
+| 33 | Charging Connected |
+| 34 | Charge Target |
+| 35 | Charge Mode |
+| 36 | Charging Captured |
+| 37 | Fuel Captured |
+| 38 | Odometer Captured |
+| 39 | API Capabilities |
+| 40 | API Data Errors |
+| 41 | Supported Operations |
+| 42 | API Rate Remaining |
+| 43 | API Rate Reset In |
+| 44 | API Key Status |
 
-The plugin requires authentication against the MySkoda service.
+### Unit 44 — API Key Status
 
-Credentials are sensitive and must be protected.
+Unit 44 is a native Domoticz General/Alert sensor:
 
-**Never commit MySkoda credentials, access tokens, refresh tokens, cookies, or other authentication data to Git.**
+- **Green** — API key OK.
+- **Yellow** — API key expires within the warning threshold.
+- **Red** — API key expired.
+- **Gray** — expiry status is unknown.
 
-Do not publish credentials in:
+The default warning threshold is **30 days** (`API_KEY_EXPIRY_WARNING_DAYS`).
 
-* GitHub Issues
-* GitHub Discussions
-* Pull Requests
-* Screenshots
-* Domoticz logs
-* Configuration files committed to the repository
+### API diagnostics
 
-See **[SECURITY.md](SECURITY.md)** for the security policy.
+- **Unit 21 — API Key Expiry:** numeric days remaining.
+- **Unit 22 — API Rate Limit:** API request limit reported/used by the integration.
+- **Unit 23 — API Status:** HTTP status code and meaning; includes the short RFC problem type when the API supplies one.
+- **Unit 40 — API Data Errors:** partial-response/API data errors.
+- **Unit 42 — API Rate Remaining:** remaining requests in the current rate-limit window.
+- **Unit 43 — API Rate Reset In:** seconds until the rate-limit quota resets.
+- **Unit 44 — API Key Status:** visual API-key health.
 
----
+## API behavior
 
-## Domoticz Devices
-
-The plugin creates Domoticz devices based on the vehicle data returned by the MySkoda API.
-
-Depending on the vehicle and API capabilities, devices may cover areas such as:
-
-| Category | Possible information           |
-| -------- | ------------------------------ |
-| Vehicle  | Status, mileage                |
-| Battery  | State of charge, range         |
-| Charging | Charging state and information |
-| Locks    | Lock state                     |
-| Doors    | Door state                     |
-| Climate  | Climate state                  |
-| Location | Vehicle position               |
-| Service  | Service information            |
-
-The actual device list is determined by the information available from the API.
-
----
-
-## API Behaviour
-
-This plugin communicates with external MySkoda services.
-
-The upstream API is not controlled by this project and may change independently.
-
-Changes can affect:
-
-* Authentication
-* API endpoints
-* Request formats
-* Response formats
-* Available vehicle information
-* Vehicle commands
-* Rate limits
-* Service availability
-
-If the MySkoda service changes, an update to this plugin may be required.
-
----
-
-## Polling
-
-The plugin periodically communicates with the MySkoda API to update Domoticz.
-
-Polling should be performed responsibly.
-
-Excessive polling can result in:
-
-* API rate limiting
-* Temporary API failures
-* Increased network traffic
-* Unnecessary load on the upstream service
-
-Do not configure unnecessarily aggressive polling intervals.
-
----
-
-## Troubleshooting
-
-Check the Domoticz log for plugin-related messages.
-
-Useful log entries may contain:
+The plugin retrieves vehicle data using:
 
 ```text
-MySkoda
-Traceback
-ImportError
-ModuleNotFoundError
-Authentication
-HTTP
-API
+GET https://public.api.connect.skoda-auto.cz/api/v1/vehicles/{vin}
 ```
 
-You can also verify that the plugin has no Python syntax errors:
+Authentication is sent as:
+
+```text
+X-API-Key: <your-api-key>
+```
+
+The integration also consumes API response headers such as API-key expiry and rate-limit information when available.
+
+Transient failures are retried. HTTP 429 and server-side 5xx responses use bounded retry/backoff logic, and `Retry-After` is honored when supplied.
+
+A successful HTTP 200 response may still contain partial-data errors. Such errors do not automatically invalidate usable vehicle data.
+
+## Runtime state and repository hygiene
+
+The plugin creates local runtime state files for caching and distance tracking. These are **runtime files, not release files**, and must not be committed to Git.
+
+The repository `.gitignore` excludes:
+
+```text
+myskoda_last_state.json
+myskoda_distance_state.json
+*_state.json
+*.state.json
+archive/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+*.swp
+*.swo
+```
+
+Never commit:
+
+- API keys or credentials.
+- Private vehicle information.
+- Runtime JSON state files.
+- Local backups or `archive/` material.
+- Logs containing sensitive data.
+
+If sensitive files were already committed, deleting them in a new commit does **not** remove them from Git history. Rewrite the repository history and rotate/revoke any exposed credentials.
+
+## Development and tests
+
+The project contains a lightweight test suite in `tests.py`.
+
+Run it in an environment where the Domoticz Python plugin API is available:
 
 ```bash
-python3 -m py_compile /opt/domoticz/plugins/MySkodaAPI/plugin.py
+python3 tests.py
 ```
 
-A successful syntax check produces no output.
-
-For deployment and troubleshooting information, see:
-
-**[DEPLOY.md](DEPLOY.md)**
-
----
-
-## Updating
-
-It is recommended to deploy tagged releases rather than arbitrary development commits.
-
-Example:
+For a basic source-tree syntax check without Domoticz, use:
 
 ```bash
-cd /opt/domoticz/plugins/MySkodaAPI
-git fetch --tags
-git checkout 0.4.1
+python3 -m py_compile *.py
 ```
 
-Then restart Domoticz:
+## Release checklist
+
+Before publishing a release:
 
 ```bash
-sudo systemctl restart domoticz
+git status --short --ignored
+git add .
+git status
+git commit -m "Release 0.4.1"
+git tag -a 0.4.1 -m "Release 0.4.1"
 ```
 
-For Docker installations:
+Then push the actual repository branch and tag:
 
 ```bash
-docker restart domoticz
+git push origin <branch>
+git push origin 0.4.1
 ```
 
-Replace the container name if your Domoticz container uses a different name.
-
----
-
-## Rollback
-
-If a release causes problems, you can return to a previous tagged release.
-
-For example:
+Do not assume the branch is `master` or `main`; check with:
 
 ```bash
-cd /opt/domoticz/plugins/MySkodaAPI
-git fetch --tags
-git checkout <PREVIOUS_VERSION>
+git branch --show-current
 ```
 
-Restart Domoticz afterwards.
-
-Always check the Domoticz log after a rollback.
-
----
-
-## Docker
-
-The plugin can be used with a Docker-based Domoticz installation provided that the plugin is available inside the Domoticz container.
-
-A persistent Domoticz volume should normally be used so that the plugin survives container recreation.
-
-After installing or updating the plugin:
-
-```bash
-docker restart domoticz
-```
-
-The exact paths depend on the Domoticz Docker image and volume configuration.
-
----
+The published source tree must not contain `archive/` or runtime state JSON files.
 
 ## Security
 
-Security is particularly important because the plugin interacts with a connected vehicle service.
-
-Please read:
-
-**[SECURITY.md](SECURITY.md)**
-
-Never publish:
-
-* MySkoda passwords
-* Access tokens
-* Refresh tokens
-* Session cookies
-* Authorization headers
-* VINs
-* Vehicle location data
-* Other sensitive vehicle information
-
-When sharing logs, redact sensitive information first.
-
----
-
-## Development
-
-The repository is developed using Git.
-
-Clone the repository:
-
-```bash
-git clone https://github.com/janreimen/Domoticz-MySkodaAPI.git
-```
-
-Create a development branch rather than working directly on the release branch:
-
-```bash
-git checkout -b feature/my-change
-```
-
-Before committing changes, verify:
-
-```bash
-git status
-git diff
-```
-
-Check Python syntax:
-
-```bash
-python3 -m py_compile plugin.py
-```
-
-Do not commit credentials or other secrets.
-
----
-
-## Release Versioning
-
-The project uses version numbers to identify releases.
-
-The version implemented by the plugin should correspond to the repository release being deployed.
-
-For example:
-
-```text
-0.0.1-alpha
-0.0.2-alpha
-...
-0.4.1
-```
-
-When preparing releases, create and commit the required intermediate release before moving to the next target release.
-
-This keeps Git history, release tags, and the version reported by the plugin consistent.
-
----
-
-## Disclaimer
-
-This project is an independent community project.
-
-It is not affiliated with, endorsed by, or sponsored by Škoda Auto unless explicitly stated otherwise.
-
-MySkoda is a service operated by Škoda. The availability and behaviour of the service and its APIs are outside the control of this project.
-
-Use of the plugin is at your own risk.
-
----
+See [`SECURITY.md`](SECURITY.md) for vulnerability reporting and secret-handling guidance.
 
 ## License
 
-This project is distributed under the license included in:
+MIT License. See [`LICENSE`](LICENSE).
 
-**[LICENSE](LICENSE)**
+## Official API documentation
 
----
+Škoda MySkoda Public API documentation:
 
-## Repository
-
-Source code and releases:
-
-**https://github.com/janreimen/Domoticz-MySkodaAPI**
-
-For deployment instructions:
-
-**[DEPLOY.md](DEPLOY.md)**
-
-For security issues:
-
-**[SECURITY.md](SECURITY.md)**
-
+https://public.api.connect.skoda-auto.cz/docs

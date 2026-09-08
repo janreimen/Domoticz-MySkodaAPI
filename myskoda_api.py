@@ -12,7 +12,7 @@ from constants import (
 
 class APIResult:
     def __init__(self, ok=False, status=None, data=None, error="", headers=None,
-                 attempts=0, retry_after=None, elapsed=0.0):
+                 attempts=0, retry_after=None, elapsed=0.0, problem_type="", problem_title="", problem_detail=""):
         self.ok = ok
         self.status = status
         self.data = data
@@ -21,6 +21,9 @@ class APIResult:
         self.attempts = attempts
         self.retry_after = retry_after
         self.elapsed = elapsed
+        self.problem_type = problem_type or ""
+        self.problem_title = problem_title or ""
+        self.problem_detail = problem_detail or ""
 
     @property
     def rate_limit(self):
@@ -104,19 +107,20 @@ class MySkodaAPI:
         return result
 
     @staticmethod
-    def _error_detail(body):
+    def _problem_fields(body):
         if not body:
-            return ""
+            return "", "", ""
         try:
             parsed = json.loads(body)
             if isinstance(parsed, dict):
-                for key in ("detail", "message", "error", "title"):
-                    value = parsed.get(key)
-                    if value:
-                        return str(value)
+                return (
+                    str(parsed.get("type") or ""),
+                    str(parsed.get("title") or ""),
+                    str(parsed.get("detail") or parsed.get("message") or parsed.get("error") or ""),
+                )
         except (ValueError, TypeError):
             pass
-        return ""
+        return "", "", ""
 
     def fetch_vehicle(self):
         # The MySkoda Public API authenticates with X-API-Key.
@@ -164,6 +168,7 @@ class MySkodaAPI:
                     body = exc.read().decode("utf-8", errors="replace")
                 except Exception:
                     body = ""
+                problem_type, problem_title, problem_detail = self._problem_fields(body)
 
                 if status in RETRYABLE_STATUS and attempt <= MAX_RETRIES:
                     delay = retry_after if retry_after is not None else min(backoff, MAX_BACKOFF)
@@ -177,18 +182,13 @@ class MySkodaAPI:
                     continue
 
                 message = "HTTP {}".format(status)
-                if status == 401:
-                    message += " - authentication failed"
-                elif status == 403:
-                    message += " - authorization failed"
-                else:
-                    detail = self._error_detail(body)
-                    if detail:
-                        message += " - " + detail
+                if problem_detail:
+                    message += " - " + problem_detail
 
                 result = APIResult(
                     False, status, None, message, response_headers,
                     attempt, retry_after, time.time() - started,
+                    problem_type, problem_title, problem_detail,
                 )
                 self.last_result = result
                 return result

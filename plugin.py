@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.0-alpha.2"
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.1"
     externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
 <description>
 <h2>MySkoda API Integration</h2><br/>
@@ -214,19 +214,28 @@ class BasePlugin:
 
         return captured_elapsed, expiry_days, rate_reset, api_key_status
 
-    def _api_status_text(self, result):
+    @staticmethod
+    def _api_status_text(result):
         code = result.status
         if code is None:
             return "- Connection error"
         meanings = {
             200: "OK", 400: "Bad Request", 401: "Unauthorized / API key expired",
             403: "Forbidden / not authorized", 404: "Not Found", 409: "Conflict",
-            422: "Unprocessable / unsupported or disabled", 429: "Too Many Requests / rate limited",
+            422: "Unprocessable / unsupported or disabled", 429: "Too Many Requests",
             500: "Internal Server Error", 502: "Bad Gateway", 503: "Service Unavailable",
             504: "Gateway Timeout",
         }
         meaning = meanings.get(code, "HTTP error")
-        return "{} {}".format(code, meaning)
+        text = "{} {}".format(code, meaning)
+        problem_type = getattr(result, "problem_type", "")
+        if problem_type:
+            short_type = problem_type.rstrip("/").rsplit("/", 1)[-1]
+            if short_type:
+                text += " / " + short_type
+        elif code == 429:
+            text += " / rate limited"
+        return text
 
     def _set_failure(self, result):
         self.failure_count += 1

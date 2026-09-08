@@ -93,9 +93,6 @@ class DistanceDeltaTests(unittest.TestCase):
         self.assertLess(7230.0 - 7236.5, 0)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class DeviceTypeTests(unittest.TestCase):
     def test_custom_km_options(self):
@@ -159,6 +156,7 @@ class DerivedTelemetryTests(unittest.TestCase):
         self.assertEqual(plugin._api_status_text(APIResult(status=200)), "200 OK")
         self.assertIn("401 Unauthorized", plugin._api_status_text(APIResult(status=401)))
         self.assertIn("429 Too Many Requests", plugin._api_status_text(APIResult(status=429)))
+        self.assertIn("rate-limit-exceeded", plugin._api_status_text(APIResult(status=429, problem_type="https://public.api.connect.skoda-auto.cz/problems/rate-limit-exceeded")))
 
     def test_api_key_warning_states(self):
         from datetime import timedelta, timezone, datetime
@@ -181,3 +179,7 @@ class DerivedTelemetryTests(unittest.TestCase):
         dt = plugin._parse_iso_timestamp("2026-09-05T07:00:00Z")
         self.assertIsNotNone(dt)
         self.assertEqual(dt.tzinfo.utcoffset(dt).total_seconds(), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
