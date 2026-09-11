@@ -5,14 +5,25 @@ All notable changes to **Domoticz-MySkodaAPI** are documented in this file.
 The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 * **Alpha** releases are development releases and may contain architectural or device-model changes.
-* **Beta** releases are intended for real-world use but may still introduce changes before 1.0.0.
-* **1.0.0** will mark the first production-stable release with a frozen device model and a strong commitment to upgrade compatibility.
+* **Beta** releases are intended for real-world use but may still introduce changes before `1.0.0`.
+* **`1.0.0`** will mark the first production-stable release with a frozen device model and a strong commitment to upgrade compatibility.
 
 ---
 
 # Release History
 
-## [0.4.1] — 2026-09-08
+## [0.4.2] - 2026-09-11
+
+### Changed
+
+* Production cleanup release based on `0.4.1`.
+* The 44 devices are no longer dropped/recreated on launch. 
+* Redesign of the device.py 
+* Documentation was aligned with the actual `0.4.2` plugin configuration and device model.
+* Domoticz units `1–44` remain unchanged.
+* The read-only telemetry model remains unchanged.
+
+## [0.4.1] - 2026-09-08
 
 ### First Stable Beta
 
@@ -54,23 +65,24 @@ See GitHub issue #6 for the current device-type migration problem.
 
 ---
 
-## [0.4.0-alpha.3] — 2026-09-05
+## [0.4.0-alpha.3] - 2026-09-05
 
 ### Added
 
 * Added unit `44` — **API Key Status**.
+
 * Implemented the sensor as a native Domoticz General/Alert sensor.
+
 * Added API-key status levels:
 
   * `OK`
   * `WARNING`
   * `EXPIRED`
   * `UNKNOWN`
+
 * Added configurable warning threshold through:
 
-```text
-API_KEY_EXPIRY_WARNING_DAYS
-```
+  `API_KEY_EXPIRY_WARNING_DAYS`
 
 * Default warning threshold is **30 days**.
 
@@ -81,7 +93,7 @@ API_KEY_EXPIRY_WARNING_DAYS
 
 ---
 
-## [0.4.0-alpha.2] — 2026-09-05
+## [0.4.0-alpha.2] - 2026-09-05
 
 ### Changed
 
@@ -89,12 +101,12 @@ API_KEY_EXPIRY_WARNING_DAYS
 * API Key Expiry is now represented as numeric days remaining.
 * Added configurable API-key expiry warning threshold.
 * Default warning threshold is 30 days.
+* API Status now includes the HTTP return code and its meaning.
 
 ### Added
 
 * Unit `42` — **API Rate Remaining**.
 * Unit `43` — **API Rate Reset In**.
-* API Status now includes the HTTP return code and its meaning.
 
 ---
 
@@ -113,13 +125,13 @@ API_KEY_EXPIRY_WARNING_DAYS
 * Target Temperature is represented as a read-only Domoticz Custom Sensor.
 * Target Temperature uses degrees Celsius (`°C`).
 
-### Design principle
+### Design Principle
 
 The Selector Switch implementation provides a native Domoticz representation of vehicle states while deliberately keeping the integration read-only.
 
 ---
 
-## [0.3.0-alpha4] — 2026-09-05
+## [0.3.0-alpha4] - 2026-09-05
 
 ### Release
 
@@ -223,9 +235,7 @@ The plugin now maintains a small amount of local state in order to provide usefu
 
 * Corrected MyŠkoda Public API authentication to use:
 
-```text
-X-API-Key
-```
+  `X-API-Key`
 
 * Corrected parsing of the current MyŠkoda API response under the `vehicle` object.
 
@@ -282,7 +292,7 @@ Introduced the refactored plugin architecture with separate responsibilities for
 
 ---
 
-## [0.0.1.1-alpha] — 2026-09-04
+## [0.0.1.1-alpha] - 2026-09-04
 
 ### Development Release
 
@@ -291,7 +301,7 @@ Introduced the refactored plugin architecture with separate responsibilities for
 
 ---
 
-## [0.0.1-beta] — 2026-09-02
+## [0.0.1-beta] - 2026-09-02
 
 ### First Long-Running Beta
 
@@ -333,4 +343,15 @@ The project currently remains **read-only** with respect to the vehicle.
 
 ---
 
+# Versioning Policy
+
+The project uses Semantic Versioning where practical.
+
+* Patch releases (`x.y.Z`) are intended for fixes, documentation corrections and maintenance.
+* Minor releases (`x.Y.0`) may introduce new functionality while maintaining the established architecture and compatibility expectations.
+* Alpha releases may introduce device-model or architectural changes.
+* Beta releases should be suitable for real-world use but may still introduce changes before `1.0.0`.
+* `1.0.0` will represent the first production-stable release with a frozen device model and a strong commitment to upgrade compatibility.
+
+---
 

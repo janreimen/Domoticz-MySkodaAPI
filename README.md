@@ -1,7 +1,7 @@
 
-da API Integration for Domoticz
+MySkoda API Integration for Domoticz
 
-**Version 0.4.1**
+**Version 0.4.2**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -24,7 +24,7 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
 ## Requirements
 
-- Domoticz with Python plugin support.
+- Domoticz with Python plugin support (2026.3 tested).
 - Python 3.
 - A valid MySkoda API key.
 - The vehicle VIN.
@@ -162,11 +162,9 @@ myskoda_last_state.json
 myskoda_distance_state.json
 *_state.json
 *.state.json
-archive/
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.DS_Store
 *.swp
 *.swo
 ```

@@ -1,11 +1,10 @@
 # Security Policy
-licy
 
 ## Supported versions
 
 Security fixes are intended for the current development/release version.
 
-The current release is **0.4.1**. Older alpha releases may no longer receive security fixes; upgrading to the latest release is recommended.
+The current release is **0.4.2**. Older alpha releases may no longer receive security fixes; upgrading to the latest release is recommended.
 
 ## Reporting a vulnerability
 
@@ -38,11 +37,9 @@ myskoda_last_state.json
 myskoda_distance_state.json
 *_state.json
 *.state.json
-archive/
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.DS_Store
 *.swp
 *.swo
 ```

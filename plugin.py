@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.1"
-    externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
-<description>
-<h2>MySkoda API Integration</h2><br/>
-Read-only integration with the official Škoda MySkoda Public API.<br/>
-API key and VIN are stored in the Domoticz hardware configuration.<br/>
-</description>
-<params>
-<param field="Mode1" label="API Key" width="500px" required="true" password="true" default="" />
-<param field="Mode2" label="VIN" width="300px" required="true" default="" />
-<param field="Mode3" label="Poll Interval (minutes)" width="80px" required="true" default="30" />
-<param field="Mode6" label="Debug" width="120px">
-<options>
-<option label="Off" value="0" default="true" />
-<option label="Basic" value="1" />
-<option label="Verbose" value="2" />
-</options>
-</param>
-</params>
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.2" externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
+  <description>
+    <h2>MySkoda API Integration</h2><br/>
+    Read-only integration with the official Škoda MySkoda Public API.<br/>
+    API key and VIN are stored in the Domoticz hardware configuration.<br/>
+  </description>
+  <params>
+    <param field="Mode1" label="API Key" width="500px" required="true" password="true" default="" />
+    <param field="Mode2" label="VIN" width="300px" required="true" default="" />
+    <param field="Mode3" label="Poll Interval (minutes)" width="80px" required="true" default="30" />
+    <param field="Mode6" label="Debug" width="120px">
+      <options>
+        <option label="Off" value="0" default="true" />
+        <option label="Basic" value="1" />
+        <option label="Verbose" value="2" />
+      </options>
+    </param>
+  </params>
 </plugin>
 """
 

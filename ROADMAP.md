@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.1 — First Stable Beta**.
+The project is currently at **0.4.2 — Second Stable Beta**.
 
 The roadmap deliberately separates:
 
@@ -15,7 +15,11 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.1
+# Current State — 0.4.2
+
+## 0.4.2 - Second Stable Beta
+
+The Drop/Create issue seems fixed
 
 ## 0.4.1 — First Stable Beta
 
@@ -79,7 +83,7 @@ Harden the existing 0.4.x architecture before introducing new functionality.
 
 The immediate priority is the Domoticz device lifecycle.
 
-GitHub issue #6 currently documents a problem where changing device characteristics during an upgrade can cause the plugin to crash. This needs to be resolved before the device model can be considered sufficiently stable for further expansion.
+GitHub issue #6 currently documents a problem where changing device characteristics during an upgrade can cause the plugin to crash. This fix is ongoing development and analysis
 
 ### Work
 

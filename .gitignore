@@ -2,16 +2,15 @@ __pycache__/
 *.pyc
 *.pyo
 archives/
-Domoticz*.zip
 .vscode/
 .idea/
-
-*.log
-Domot*.zip
+myskoda_distance_state.json
+myskoda_last_state.json
+*.0.*.md
+*.0.*.py
 .env
 .env.*
 *.secret
-.json
 # Local Domoticz configuration
 config.local.py
 local_config.
