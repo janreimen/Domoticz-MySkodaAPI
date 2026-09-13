@@ -1,7 +1,7 @@
 
 MySkoda API Integration for Domoticz
 
-**Version 0.4.2**
+**Version 0.4.3**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -19,8 +19,9 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - Native Domoticz Alert sensor for API-key health.
 - Daily and previous-day distance tracking.
 - Charging, battery, climate, security, fuel and telemetry diagnostics.
+- Charging power, remaining charging time and charge type (AC/DC), sourced from the same charging data already polled - no extra API call.
 - Python standard library only; no third-party runtime dependencies.
-- Existing Domoticz units 1–44 are preserved for upgrade compatibility.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.
 
 ## Requirements
 
@@ -109,6 +110,9 @@ The plugin deliberately keeps the established unit numbers:
 | 42 | API Rate Remaining |
 | 43 | API Rate Reset In |
 | 44 | API Key Status |
+| 45 | Charging Power |
+| 46 | Remaining Charging Time |
+| 47 | Charge Type |
 
 ### Unit 44 — API Key Status
 
@@ -130,6 +134,16 @@ The default warning threshold is **30 days** (`API_KEY_EXPIRY_WARNING_DAYS`).
 - **Unit 42 — API Rate Remaining:** remaining requests in the current rate-limit window.
 - **Unit 43 — API Rate Reset In:** seconds until the rate-limit quota resets.
 - **Unit 44 — API Key Status:** visual API-key health.
+
+### Units 45–47 — Charging diagnostics (0.4.3)
+
+- **Unit 45 — Charging Power:** current charging power in kW.
+- **Unit 46 — Remaining Charging Time:** minutes until fully charged.
+- **Unit 47 — Charge Type:** `AC` or `DC`.
+
+These are parsed from the `charging` object already fetched for units 30–35; no new API call or `API_INCLUDE` entry was needed.
+
+The JSON field names used to extract these three values were not available in the published API documentation at the time of writing and have not yet been confirmed against a live response for every vehicle/account. Run `python3 verify_charging_fields.py <API_KEY> <VIN>` once (see "Development and tests" below) to confirm the field names for your vehicle before relying on these units; if they don't match, add the real key names to the candidate lists in `vehicle.py`.
 
 ## API behavior
 
@@ -195,6 +209,12 @@ For a basic source-tree syntax check without Domoticz, use:
 python3 -m py_compile *.py
 ```
 
+`verify_charging_fields.py` is a standalone helper (no Domoticz dependency) that fetches one real API response and checks the raw `charging` object against the field-name candidates used for units 45–47:
+
+```bash
+python3 verify_charging_fields.py <API_KEY> <VIN>
+```
+
 ## Release checklist
 
 Before publishing a release:
@@ -203,15 +223,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.1"
-git tag -a 0.4.1 -m "Release 0.4.1"
+git commit -m "Release 0.4.3"
+git tag -a 0.4.3 -m "Release 0.4.3"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.1
+git push origin 0.4.3
 ```
 
 Do not assume the branch is `master` or `main`; check with:

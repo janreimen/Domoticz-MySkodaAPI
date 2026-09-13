@@ -52,6 +52,10 @@ class DeviceManager:
         ("api_rate_remaining", "API Rate Remaining", "Custom Sensor", "custom_requests"),
         ("api_rate_reset", "API Rate Reset In", "Custom Sensor", "custom_seconds"),
         ("api_key_status", "API Key Status", "Alert", "alert"),
+        # New in 0.4.3
+        ("charging_power", "Charging Power", "Custom Sensor", "custom_kw"),
+        ("remaining_charging_time", "Remaining Charging Time", "Custom Sensor", "custom_minutes"),
+        ("charge_type", "Charge Type", "Text", "text"),
     ]
 
     COUNTER_OPTIONS = {"ValueQuantity": "Distance", "ValueUnits": "km"}
@@ -60,6 +64,8 @@ class DeviceManager:
     CUSTOM_SECONDS_OPTIONS = {"Custom": "1;s"}
     CUSTOM_DAYS_OPTIONS = {"Custom": "1;days"}
     CUSTOM_REQUESTS_OPTIONS = {"Custom": "1;requests"}
+    CUSTOM_KW_OPTIONS = {"Custom": "1;kW"}
+    CUSTOM_MINUTES_OPTIONS = {"Custom": "1;min"}
 
     CUSTOM_KM_TYPE = CUSTOM_C_TYPE = 243
     CUSTOM_KM_SUBTYPE = CUSTOM_C_SUBTYPE = 31
@@ -160,6 +166,10 @@ class DeviceManager:
             return {"Type": self.CUSTOM_KM_TYPE, "Subtype": self.CUSTOM_KM_SUBTYPE, "Switchtype": self.CUSTOM_KM_SWITCHTYPE, "Options": self.CUSTOM_DAYS_OPTIONS}
         if mode == "custom_requests":
             return {"Type": self.CUSTOM_KM_TYPE, "Subtype": self.CUSTOM_KM_SUBTYPE, "Switchtype": self.CUSTOM_KM_SWITCHTYPE, "Options": self.CUSTOM_REQUESTS_OPTIONS}
+        if mode == "custom_kw":
+            return {"Type": self.CUSTOM_KM_TYPE, "Subtype": self.CUSTOM_KM_SUBTYPE, "Switchtype": self.CUSTOM_KM_SWITCHTYPE, "Options": self.CUSTOM_KW_OPTIONS}
+        if mode == "custom_minutes":
+            return {"Type": self.CUSTOM_KM_TYPE, "Subtype": self.CUSTOM_KM_SUBTYPE, "Switchtype": self.CUSTOM_KM_SWITCHTYPE, "Options": self.CUSTOM_MINUTES_OPTIONS}
         if mode == "alert":
             return {"Type": self.ALERT_TYPE, "Subtype": self.ALERT_SUBTYPE, "Switchtype": self.ALERT_SWITCHTYPE}
         if mode.startswith("selector_"):
@@ -410,6 +420,9 @@ class DeviceManager:
             self.update_text("charging_connected", "UNKNOWN")
         self._update_percentage("charge_target", state.charge_target)
         self._update_selector("charge_mode", self._normalized(state.charge_mode))
+        self._update_custom_numeric("charging_power", state.charging_power, self.CUSTOM_KW_OPTIONS, decimals=1)
+        self._update_custom_numeric("remaining_charging_time", state.remaining_charging_time, self.CUSTOM_MINUTES_OPTIONS)
+        self.update_text("charge_type", self._normalized(state.charge_type))
         self.update_text("charging_captured", state.charging_captured_at or "UNKNOWN")
         self.update_text("fuel_captured", state.fuel_captured_at or "UNKNOWN")
         self.update_text("odometer_captured", state.odometer_captured_at or "UNKNOWN")

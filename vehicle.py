@@ -90,6 +90,9 @@ class VehicleState:
     charging_connected: Optional[bool] = None
     charge_target: Optional[float] = None
     charge_mode: str = "Unknown"
+    charging_power: Optional[float] = None
+    remaining_charging_time: Optional[float] = None
+    charge_type: str = "Unknown"
     charging_captured_at: str = ""
     fuel_captured_at: str = ""
     odometer_captured_at: str = ""
@@ -169,6 +172,17 @@ class VehicleState:
         charge_mode = state_text(first(charging, "mode", "chargeMode", "chargingMode", default="Unknown"))
         charging_captured = safe_str(first(charging, "carCapturedTimestamp", "capturedAt", default=""))
 
+        # NOTE (0.4.3): field names below are best-guess candidates based on
+        # the documented "charging power and charge limit" coverage of the
+        # official public API - not yet confirmed against a captured raw
+        # response for this account/vehicle. Verify with a one-off Debug
+        # dump of `charging` before relying on these in production; add any
+        # missing key you find to the candidate list rather than replacing it,
+        # so both naming conventions keep working across API revisions.
+        charging_power = safe_float(first(charging, "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower", default=None))
+        remaining_charging_time = safe_float(first(charging, "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime", default=None))
+        charge_type = state_text(first(charging, "chargeType", "type", "chargingType", default="Unknown"))
+
         return cls(
             vin=vin, name=name, license_plate=plate,
             doors_locked=locked, doors=state_text(doors), windows=state_text(windows),
@@ -182,6 +196,8 @@ class VehicleState:
             fuel_type=fuel_type, charging_state=charging_state, battery_soc=battery_soc,
             electric_range=electric_range, charging_connected=charging_connected,
             charge_target=charge_target, charge_mode=charge_mode,
+            charging_power=charging_power, remaining_charging_time=remaining_charging_time,
+            charge_type=charge_type,
             charging_captured_at=charging_captured, fuel_captured_at=fuel_captured,
             odometer_captured_at=odo_captured, api_errors=errors,
             supported_operations=[(x.get("name") if isinstance(x, dict) else str(x)) for x in operations],

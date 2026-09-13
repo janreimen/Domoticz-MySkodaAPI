@@ -42,6 +42,28 @@ class VehicleParserTests(unittest.TestCase):
         self.assertIsNone(state.fuel_level)
         self.assertEqual(state.doors, "Unknown")
 
+    def test_charging_power_fields_v043(self):
+        # NOTE: uses one of the 0.4.3 candidate key sets as a stand-in.
+        # Once verify_charging_fields.py confirms the real API keys for
+        # your vehicle, update this fixture (and the candidate lists in
+        # vehicle.py) to match - this test only guards the parsing wiring,
+        # not the correctness of the guessed key names themselves.
+        data = {"vehicle": {"charging": {
+            "chargingPowerInKw": 11.0,
+            "remainingTimeToFullyChargedInMinutes": 95,
+            "chargeType": "AC",
+        }}}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.charging_power, 11.0)
+        self.assertEqual(state.remaining_charging_time, 95.0)
+        self.assertEqual(state.charge_type, "AC")
+
+    def test_charging_power_fields_missing_default_safely(self):
+        state = VehicleState.from_api({"vehicle": {"charging": {}}})
+        self.assertIsNone(state.charging_power)
+        self.assertIsNone(state.remaining_charging_time)
+        self.assertEqual(state.charge_type, "Unknown")
+
     def test_rate_limit_and_expiry_headers(self):
         result = APIResult(headers={"ratelimit-limit": "20", "ratelimit-remaining": "15", "ratelimit-reset": "873", "x-api-key-expires-at": "2027-03-04T13:44:43.043Z"})
         self.assertIn("limit=20", result.rate_text)
@@ -80,7 +102,7 @@ class DeviceModelTests(unittest.TestCase):
 
     def test_all_units_are_contiguous(self):
         from constants import UNITS
-        self.assertEqual(sorted(UNITS.values()), list(range(1, 45)))
+        self.assertEqual(sorted(UNITS.values()), list(range(1, 48)))
 
 
 class DistanceDeltaTests(unittest.TestCase):
@@ -128,7 +150,10 @@ class TelemetryTests(unittest.TestCase):
         self.assertEqual(UNITS["api_rate_remaining"], 42)
         self.assertEqual(UNITS["api_rate_reset"], 43)
         self.assertEqual(UNITS["api_key_status"], 44)
-        self.assertEqual(sorted(UNITS.values()), list(range(1, 45)))
+        self.assertEqual(UNITS["charging_power"], 45)
+        self.assertEqual(UNITS["remaining_charging_time"], 46)
+        self.assertEqual(UNITS["charge_type"], 47)
+        self.assertEqual(sorted(UNITS.values()), list(range(1, 48)))
 
 
 class NativeStateSensorTests(unittest.TestCase):

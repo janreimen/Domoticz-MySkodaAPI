@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.2 — Second Stable Beta**.
+The project is currently at **0.4.3 — Second Stable Beta**.
 
 The roadmap deliberately separates:
 
@@ -15,7 +15,11 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.2
+# Current State — 0.4.3
+
+## 0.4.3 - Charging diagnostics pulled forward
+
+Added Charging Power, Remaining Charging Time and Charge Type (units 45-47), using the `charging` data already fetched in 0.4.2. This is a small piece of the "Additional charging information exposed by the API" item planned under the 0.5.x Charging section below, pulled forward since it required no architecture change.
 
 ## 0.4.2 - Second Stable Beta
 
@@ -63,7 +67,7 @@ The current implementation includes:
 * stable Domoticz unit assignments.
 * local runtime state for persistent calculations.
 
-The established Domoticz device model currently uses units **1–44**.
+The established Domoticz device model currently uses units **1–47**.
 
 The integration remains intentionally **read-only**. Selector devices are telemetry displays and do not issue vehicle commands.
 
@@ -1135,9 +1139,9 @@ Long-term 1.x development
 
 # Current Next Step
 
-**Next milestone: `0.4.2`**
+**Next milestone: `0.5.x`**
 
-The immediate priority is **stability of the existing device/provisioning model**, especially safe device characteristic migration and upgrade handling.
+The immediate priority remains **stability of the existing device/provisioning model**, especially safe device characteristic migration and upgrade handling (see the 0.4.2 — Stabilisation section above; confirm its acceptance criteria are fully met before treating that work as done).
 
 Only after that foundation is reliable should development proceed toward the `0.5.x` complete read-only milestone.
 

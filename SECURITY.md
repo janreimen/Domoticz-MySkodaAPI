@@ -4,7 +4,7 @@
 
 Security fixes are intended for the current development/release version.
 
-The current release is **0.4.2**. Older alpha releases may no longer receive security fixes; upgrading to the latest release is recommended.
+The current release is **0.4.3**. Older alpha releases may no longer receive security fixes; upgrading to the latest release is recommended.
 
 ## Reporting a vulnerability
 

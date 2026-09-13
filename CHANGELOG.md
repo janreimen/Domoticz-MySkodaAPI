@@ -12,6 +12,20 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.3] - Unreleased
+
+### Added
+
+* Three new read-only devices, using the `charging` data already fetched by `0.4.2` (no new `API_INCLUDE` entry, no extra API call, no rate-limit impact):
+  * `Charging Power` (kW) - unit 45
+  * `Remaining Charging Time` (min) - unit 46
+  * `Charge Type` (AC/DC) - unit 47
+* Existing units `1-44` are unchanged; new units are appended, matching the `0.4.2` upgrade-compatibility convention.
+
+### Notes
+
+* The field names used to parse power/remaining-time/charge-type from the API's `charging` object are best-guess candidates and have not yet been confirmed against a captured raw response. Verify before relying on these values in production.
+
 ## [0.4.2] - 2026-09-11
 
 ### Changed
