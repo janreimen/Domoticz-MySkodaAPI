@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""One-off verification tool for the 0.4.3 charging-field candidates.
+"""One-off verification tool for the 0.4.3-alpha charging-field candidates.
 
 Runs completely outside Domoticz - only imports myskoda_api.py, which has
 no Domoticz dependency. Use it once to confirm the real JSON keys for
 charging power / remaining time / charge type before trusting the
-candidate key lists added to vehicle.py in the 0.4.3 patch.
+candidate key lists added to vehicle.py in the 0.4.3-alpha patch.
 
 Usage:
     python3 verify_charging_fields.py <API_KEY> <VIN>
@@ -53,7 +53,7 @@ def main():
     print(json.dumps(charging, indent=2, ensure_ascii=False))
     print()
 
-    print("--- candidate key check against vehicle.py's 0.4.3 lookups ---")
+    print("--- candidate key check against vehicle.py's 0.4.3-alpha lookups ---")
     candidates = {
         "charging_power": ["chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower"],
         "remaining_charging_time": ["remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime"],
@@ -70,7 +70,7 @@ def main():
         print()
         print("None of the candidates matched. Look through the full object printed")
         print("above, find the real keys, and add them to the candidate lists in")
-        print("vehicle.py (append, don't replace) before relying on the 0.4.3 patch.")
+        print("vehicle.py (append, don't replace) before relying on the 0.4.3-alpha patch.")
 
 
 if __name__ == "__main__":

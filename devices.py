@@ -31,8 +31,8 @@ class DeviceManager:
         ("api_key_expiry", "API Key Expiry", "Custom Sensor", "custom_days"),
         ("api_rate_limit", "API Rate Limit", "Text", "text"),
         ("api_status", "API Status", "Text", "text"),
-        ("today_distance", "Today Distance", "Counter", "counter_km"),
-        ("yesterday_distance", "Yesterday Distance", "Counter", "counter_km"),
+        ("today_distance", "Today Distance", "Custom Sensor", "custom_km"),
+        ("yesterday_distance", "Yesterday Distance", "Custom Sensor", "custom_km"),
         ("vehicle_security", "Vehicle Security", "Selector", "selector_security"),
         ("climate_state", "Climate State", "Selector", "selector_climate"),
         ("data_quality", "Data Quality", "Text", "text"),
@@ -52,7 +52,7 @@ class DeviceManager:
         ("api_rate_remaining", "API Rate Remaining", "Custom Sensor", "custom_requests"),
         ("api_rate_reset", "API Rate Reset In", "Custom Sensor", "custom_seconds"),
         ("api_key_status", "API Key Status", "Alert", "alert"),
-        # New in 0.4.3
+        # New in 0.4.3-alpha
         ("charging_power", "Charging Power", "Custom Sensor", "custom_kw"),
         ("remaining_charging_time", "Remaining Charging Time", "Custom Sensor", "custom_minutes"),
         ("charge_type", "Charge Type", "Text", "text"),
@@ -378,6 +378,8 @@ class DeviceManager:
         self._update_percentage("fuel_level", state.fuel_level)
         self._update_custom_km("fuel_range", state.fuel_range)
         self._update_custom_km("total_range", state.total_range)
+        # Unit 12 is the cumulative odometer and remains the only distance
+        # counter used for Domoticz daily/monthly/yearly statistics.
         self._update_counter_km("odometer", state.odometer)
         self._update_selector("vehicle_state", self._smart_vehicle_state(state))
 
@@ -403,8 +405,11 @@ class DeviceManager:
         self._update_custom_numeric("api_rate_reset", api_rate_reset, self.CUSTOM_SECONDS_OPTIONS)
         self.update_text("api_status", api_status)
 
-        self._update_counter_km("today_distance", today_distance)
-        self._update_counter_km("yesterday_distance", yesterday_distance)
+        # Units 24 and 25 are non-cumulative informational sensors.
+        # They must not be RFXMeter counters because their values reset
+        # at midnight and would create negative counter deltas.
+        self._update_custom_km("today_distance", today_distance)
+        self._update_custom_km("yesterday_distance", yesterday_distance)
 
         self._update_selector("vehicle_security", self._smart_security(state))
         self._update_selector("climate_state", self._smart_climate(state))

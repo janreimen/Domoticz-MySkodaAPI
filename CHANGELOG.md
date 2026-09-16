@@ -12,7 +12,15 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
-## [0.4.3] - Unreleased
+## [0.4.3-alpha] - 2026-09-16
+
+### Changed
+
+* Units 24 (Today Distance) and 25 (Yesterday Distance) are now Custom Sensors instead of RFXMeter counters.
+* Unit 12 (Odometer / Mileage) remains the cumulative RFXMeter counter used for Domoticz distance statistics.
+* This prevents negative counter peaks when the daily distance values reset at local midnight.
+
+## [0.4.3] - 2026-09-13
 
 ### Added
 

@@ -43,7 +43,7 @@ class VehicleParserTests(unittest.TestCase):
         self.assertEqual(state.doors, "Unknown")
 
     def test_charging_power_fields_v043(self):
-        # NOTE: uses one of the 0.4.3 candidate key sets as a stand-in.
+        # NOTE: uses one of the 0.4.3-alpha candidate key sets as a stand-in.
         # Once verify_charging_fields.py confirms the real API keys for
         # your vehicle, update this fixture (and the candidate lists in
         # vehicle.py) to match - this test only guards the parsing wiring,

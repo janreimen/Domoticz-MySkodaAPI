@@ -1,4 +1,4 @@
-PLUGIN_VERSION = "0.4.3"
+PLUGIN_VERSION = "0.4.3-alpha"
 PLUGIN_KEY = "MySkodaAPI"
 PLUGIN_NAME = "MySkoda API Integration"
 PLUGIN_URL = "https://github.com/janreimen/Domoticz-MySkodaAPI"
@@ -63,7 +63,7 @@ UNITS = {
     "api_rate_remaining": 42,
     "api_rate_reset": 43,
     "api_key_status": 44,
-    # New in 0.4.3. Appended after 44 so existing units 1-44 are untouched
+    # New in 0.4.3-alpha. Appended after 44 so existing units 1-44 are untouched
     # on upgrade (same convention as the 0.4.2 comment above).
     "charging_power": 45,
     "remaining_charging_time": 46,

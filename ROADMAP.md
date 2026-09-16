@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3 — Second Stable Beta**.
+The project is currently at **0.4.3-alpha — Development Alpha**.
 
 The roadmap deliberately separates:
 
@@ -15,13 +15,15 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3
+# Current State — 0.4.3-alpha
+
+Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
 
 ## 0.4.3 - Charging diagnostics pulled forward
 
 Added Charging Power, Remaining Charging Time and Charge Type (units 45-47), using the `charging` data already fetched in 0.4.2. This is a small piece of the "Additional charging information exposed by the API" item planned under the 0.5.x Charging section below, pulled forward since it required no architecture change.
 
-## 0.4.2 - Second Stable Beta
+## 0.4.2 - Development Alpha
 
 The Drop/Create issue seems fixed
 

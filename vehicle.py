@@ -172,7 +172,7 @@ class VehicleState:
         charge_mode = state_text(first(charging, "mode", "chargeMode", "chargingMode", default="Unknown"))
         charging_captured = safe_str(first(charging, "carCapturedTimestamp", "capturedAt", default=""))
 
-        # NOTE (0.4.3): field names below are best-guess candidates based on
+        # NOTE (0.4.3-alpha): field names below are best-guess candidates based on
         # the documented "charging power and charge limit" coverage of the
         # official public API - not yet confirmed against a captured raw
         # response for this account/vehicle. Verify with a one-off Debug

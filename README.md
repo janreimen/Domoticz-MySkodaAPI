@@ -1,7 +1,6 @@
-
 MySkoda API Integration for Domoticz
 
-**Version 0.4.3**
+**Version 0.4.3-alpha**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -17,11 +16,11 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - RFC-style API problem types exposed in API Status when supplied by the API.
 - Native Domoticz selector devices for semantic states.
 - Native Domoticz Alert sensor for API-key health.
-- Daily and previous-day distance tracking.
+- Daily and previous-day distance tracking as informational Custom Sensors; cumulative distance statistics remain on the odometer counter (unit 12).
 - Charging, battery, climate, security, fuel and telemetry diagnostics.
 - Charging power, remaining charging time and charge type (AC/DC), sourced from the same charging data already polled - no extra API call.
 - Python standard library only; no third-party runtime dependencies.
-- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3-alpha.
 
 ## Requirements
 
@@ -77,7 +76,7 @@ The plugin deliberately keeps the established unit numbers:
 | 9 | Fuel Level |
 | 10 | Fuel Range |
 | 11 | Total Range |
-| 12 | Odometer / Mileage |
+| 12 | Odometer / Mileage — cumulative RFXMeter counter used for Domoticz statistics |
 | 13 | Vehicle State |
 | 14 | Parking Address |
 | 15 | Parking GPS |
@@ -89,8 +88,8 @@ The plugin deliberately keeps the established unit numbers:
 | 21 | API Key Expiry |
 | 22 | API Rate Limit |
 | 23 | API Status |
-| 24 | Today Distance |
-| 25 | Yesterday Distance |
+| 24 | Today Distance — informational Custom Sensor; resets at local midnight |
+| 25 | Yesterday Distance — informational Custom Sensor; previous completed day |
 | 26 | Vehicle Security |
 | 27 | Climate State |
 | 28 | Data Quality |
@@ -114,6 +113,13 @@ The plugin deliberately keeps the established unit numbers:
 | 46 | Remaining Charging Time |
 | 47 | Charge Type |
 
+### Distance tracking and Domoticz statistics
+
+- **Unit 12 — Odometer / Mileage** remains the cumulative RFXMeter counter. It must only move upward (apart from a genuine odometer reset) and is the distance source for Domoticz daily/monthly/yearly statistics.
+- **Unit 24 — Today Distance** is an informational Custom Sensor and resets to zero at local midnight.
+- **Unit 25 — Yesterday Distance** is an informational Custom Sensor containing the completed previous day.
+- Units 24 and 25 are deliberately not RFXMeter counters, preventing negative midnight counter deltas.
+
 ### Unit 44 — API Key Status
 
 Unit 44 is a native Domoticz General/Alert sensor:
@@ -135,7 +141,7 @@ The default warning threshold is **30 days** (`API_KEY_EXPIRY_WARNING_DAYS`).
 - **Unit 43 — API Rate Reset In:** seconds until the rate-limit quota resets.
 - **Unit 44 — API Key Status:** visual API-key health.
 
-### Units 45–47 — Charging diagnostics (0.4.3)
+### Units 45–47 — Charging diagnostics (0.4.3-alpha)
 
 - **Unit 45 — Charging Power:** current charging power in kW.
 - **Unit 46 — Remaining Charging Time:** minutes until fully charged.
@@ -223,15 +229,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.3"
-git tag -a 0.4.3 -m "Release 0.4.3"
+git commit -m "Release 0.4.3-alpha"
+git tag -a 0.4.3-alpha -m "Release 0.4.3-alpha"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.3
+git push origin 0.4.3-alpha
 ```
 
 Do not assume the branch is `master` or `main`; check with:
