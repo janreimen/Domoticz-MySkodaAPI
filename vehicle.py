@@ -164,24 +164,89 @@ class VehicleState:
         fuel_captured = safe_str(first(primary, "carCapturedTimestamp", default=first(fuel, "carCapturedTimestamp", default="")))
         odo_captured = safe_str(first(odo, "carCapturedTimestamp", default=""))
 
-        charging_state = state_text(first(charging, "state", "status", "chargingState", default="Unknown"))
-        battery_soc = safe_float(first(charging, "batteryLevelInPercent", "stateOfChargeInPercent", "currentSoCInPercent", "socInPercent", default=first(charging, "battery", "soc", default=None)))
-        electric_range = safe_float(first(charging, "remainingRangeInKm", "electricRangeInKm", "rangeInKm", default=None))
+        # 2026-09-17: a real API dump from a plug-in-hybrid Kodiaq (reported via
+        # GitHub issue) confirmed this endpoint nests charging data one level
+        # deeper than the flat lookups below originally assumed:
+        #   charging.status.state                                  (was read as flat charging.state)
+        #   charging.status.battery.stateOfChargeInPercent         (was read as flat charging.stateOfChargeInPercent)
+        #   charging.status.battery.remainingCruisingRangeInMeters (METERS; no flat equivalent existed)
+        #   charging.status.chargePowerInKw                        (was read as flat charging.chargingPowerInKw - also misnamed)
+        #   charging.settings.targetStateOfChargeInPercent         (was read as flat charging.targetStateOfChargeInPercent)
+        #   charging.settings.preferredChargeMode                  (key wasn't in the candidate list at all)
+        # The nested paths are added alongside the old flat candidates (first()
+        # already supports dotted paths) rather than replacing them, so a
+        # response shape that does have them flat still works.
+        charging_state = state_text(first(charging, "status.state", "state", "chargingState", "status", default="Unknown"))
+        battery_soc = safe_float(first(
+            charging,
+            "status.battery.stateOfChargeInPercent",
+            "batteryLevelInPercent", "stateOfChargeInPercent", "currentSoCInPercent", "socInPercent",
+            default=first(charging, "battery", "soc", default=None),
+        ))
+
+        electric_range_m = safe_float(first(charging, "status.battery.remainingCruisingRangeInMeters", default=None))
+        if electric_range_m is not None:
+            electric_range = electric_range_m / 1000.0
+        else:
+            # Fallback for hybrids: fuelStatus.secondaryEngineRange carries the
+            # electric side's range in km already, confirmed in the same dump.
+            electric_range = safe_float(first(
+                charging, "remainingRangeInKm", "electricRangeInKm", "rangeInKm",
+                default=first(fuel, "secondaryEngineRange.remainingRangeInKm", default=None),
+            ))
+
         charging_connected = boolish(first(charging, "connected", "isConnected", "pluggedIn", "chargingCableConnected", default=None))
-        charge_target = safe_float(first(charging, "targetStateOfChargeInPercent", "targetSoCInPercent", "targetBatteryLevelInPercent", "targetSoc", default=None))
-        charge_mode = state_text(first(charging, "mode", "chargeMode", "chargingMode", default="Unknown"))
+        if charging_connected is None:
+            # No explicit connected/plugged-in boolean appears anywhere in the
+            # captured dump. "CONNECT_CABLE" is the one state value whose
+            # meaning is unambiguous from the dump itself (the API telling the
+            # user to plug in), so treat it as a confirmed "not connected"
+            # signal. Other state values are left as None (Unknown) rather than
+            # guessed - add them here once confirmed against a real dump.
+            if state_text(first(charging, "status.state", "state", default="")).strip().upper() == "CONNECT_CABLE":
+                charging_connected = False
+        charge_target = safe_float(first(
+            charging,
+            "settings.targetStateOfChargeInPercent",
+            "targetStateOfChargeInPercent", "targetSoCInPercent", "targetBatteryLevelInPercent", "targetSoc",
+            default=None,
+        ))
+        charge_mode = state_text(first(
+            charging,
+            "settings.preferredChargeMode", "preferredChargeMode",
+            "mode", "chargeMode", "chargingMode",
+            default="Unknown",
+        ))
         charging_captured = safe_str(first(charging, "carCapturedTimestamp", "capturedAt", default=""))
 
-        # NOTE (0.4.3-alpha): field names below are best-guess candidates based on
-        # the documented "charging power and charge limit" coverage of the
-        # official public API - not yet confirmed against a captured raw
-        # response for this account/vehicle. Verify with a one-off Debug
-        # dump of `charging` before relying on these in production; add any
-        # missing key you find to the candidate list rather than replacing it,
-        # so both naming conventions keep working across API revisions.
-        charging_power = safe_float(first(charging, "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower", default=None))
-        remaining_charging_time = safe_float(first(charging, "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime", default=None))
-        charge_type = state_text(first(charging, "chargeType", "type", "chargingType", default="Unknown"))
+        # NOTE (0.4.3-alpha): remaining_charging_time and charge_type were not
+        # visible in the captured dump (the pasted JSON was cut off before
+        # reaching them), so their nested candidates below are still an
+        # unconfirmed best guess following the same status.* pattern as the
+        # fields above - not yet verified against a captured raw response for
+        # this account/vehicle. Verify with a one-off Debug dump of `charging`
+        # (or re-run verify_charging_fields.py, which prints the full object)
+        # before relying on these in production; add any missing key you find
+        # to the candidate list rather than replacing it, so both naming
+        # conventions keep working across API revisions.
+        charging_power = safe_float(first(
+            charging,
+            "status.chargePowerInKw",
+            "chargePowerInKw", "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower",
+            default=None,
+        ))
+        remaining_charging_time = safe_float(first(
+            charging,
+            "status.remainingTimeToFullyChargedInMinutes",
+            "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime",
+            default=None,
+        ))
+        charge_type = state_text(first(
+            charging,
+            "status.chargeType", "status.chargingType",
+            "chargeType", "type", "chargingType",
+            default="Unknown",
+        ))
 
         return cls(
             vin=vin, name=name, license_plate=plate,

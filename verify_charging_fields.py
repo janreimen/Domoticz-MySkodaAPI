@@ -48,29 +48,62 @@ def main():
         root = result.data if isinstance(result.data, dict) else {}
 
     charging = root.get("charging") or {}
+    fuel = root.get("fuelStatus") or root.get("fuel_status") or {}
 
     print("--- full 'charging' object (this is what vehicle.py parses) ---")
     print(json.dumps(charging, indent=2, ensure_ascii=False))
     print()
 
-    print("--- candidate key check against vehicle.py's 0.4.3-alpha lookups ---")
+    secondary = fuel.get("secondaryEngineRange")
+    if secondary:
+        # Present on plug-in hybrids; vehicle.py falls back to this for
+        # electric_range when charging.status.battery isn't populated.
+        print("--- fuelStatus.secondaryEngineRange (hybrid electric-range fallback) ---")
+        print(json.dumps(secondary, indent=2, ensure_ascii=False))
+        print()
+
+    print("--- candidate key check against vehicle.py's current lookups ---")
+    # Keep this in sync with the `first(charging, ...)` candidate lists in
+    # vehicle.py's from_api(). Confirmed as of 2026-09-17 against a real
+    # plug-in-hybrid Kodiaq dump: charging_state, battery_soc, electric_range
+    # (via status.battery.remainingCruisingRangeInMeters, in meters),
+    # charge_target and charge_mode all live under charging.status /
+    # charging.settings. remaining_charging_time and charge_type below are
+    # still unconfirmed best guesses - that dump was cut off before reaching
+    # them, so treat any match here as a hint to verify, not a certainty.
     candidates = {
-        "charging_power": ["chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower"],
-        "remaining_charging_time": ["remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime"],
-        "charge_type": ["chargeType", "type", "chargingType"],
+        "charging_power": ["status.chargePowerInKw", "chargePowerInKw", "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower"],
+        "remaining_charging_time": ["status.remainingTimeToFullyChargedInMinutes", "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime"],
+        "charge_type": ["status.chargeType", "status.chargingType", "chargeType", "type", "chargingType"],
     }
+
+    def lookup(data, path):
+        current = data
+        for part in path.split("."):
+            if not isinstance(current, dict) or part not in current:
+                return False, None
+            current = current[part]
+        return True, current
+
+    any_match = False
     for field, keys in candidates.items():
-        found = [k for k in keys if k in charging]
+        found = []
+        for key in keys:
+            matched, value = lookup(charging, key)
+            if matched:
+                found.append((key, value))
         if found:
-            print("{}: MATCH on {} -> {}".format(field, found, [charging[k] for k in found]))
+            any_match = True
+            print("{}: MATCH on {}".format(field, found))
         else:
             print("{}: NO MATCH among {} - inspect the full object above for the real key".format(field, keys))
 
-    if not any(k in charging for keys in candidates.values() for k in keys):
+    if not any_match:
         print()
         print("None of the candidates matched. Look through the full object printed")
-        print("above, find the real keys, and add them to the candidate lists in")
-        print("vehicle.py (append, don't replace) before relying on the 0.4.3-alpha patch.")
+        print("above, find the real keys, and add them (as dotted paths if nested) to")
+        print("the candidate lists in vehicle.py's from_api() - append, don't replace -")
+        print("before relying on them in production.")
 
 
 if __name__ == "__main__":

@@ -6,7 +6,8 @@ archives/
 .idea/
 myskoda_distance_state.json
 myskoda_last_state.json
-*.0.*.md
+*.patch
+*.-1.*.md
 *.0.*.py
 .env
 .env.*

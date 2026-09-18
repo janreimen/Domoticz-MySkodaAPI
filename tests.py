@@ -58,6 +58,53 @@ class VehicleParserTests(unittest.TestCase):
         self.assertEqual(state.remaining_charging_time, 95.0)
         self.assertEqual(state.charge_type, "AC")
 
+    def test_phev_nested_charging_status_settings(self):
+        # Regression test for the plug-in-hybrid Kodiaq GitHub issue: the real
+        # API nests charging data under charging.status/charging.settings
+        # instead of the flat keys the original 0.4.2 parsing assumed, which
+        # left every EV-related device empty for hybrid vehicles.
+        data = {"vehicle": {
+            "charging": {
+                "carCapturedTimestamp": "2026-09-17T17:45:16Z",
+                "settings": {
+                    "preferredChargeMode": "MANUAL",
+                    "targetStateOfChargeInPercent": 80,
+                },
+                "status": {
+                    "battery": {
+                        "remainingCruisingRangeInMeters": 33000,
+                        "stateOfChargeInPercent": 31,
+                    },
+                    "chargePowerInKw": 0.0,
+                    "state": "CONNECT_CABLE",
+                },
+            },
+            "fuelStatus": {
+                "carType": "HYBRID",
+                "primaryEngineRange": {"engineType": "GASOLINE", "currentFuelLevelInPercent": 100, "remainingRangeInKm": 650},
+                "secondaryEngineRange": {"engineType": "ELECTRIC", "currentSoCInPercent": 31, "remainingRangeInKm": 33},
+            },
+        }}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.charging_state, "CONNECT_CABLE")
+        self.assertEqual(state.battery_soc, 31.0)
+        self.assertEqual(state.electric_range, 33.0)
+        self.assertFalse(state.charging_connected)
+        self.assertEqual(state.charge_target, 80.0)
+        self.assertEqual(state.charge_mode, "MANUAL")
+        self.assertEqual(state.charging_power, 0.0)
+
+    def test_phev_electric_range_falls_back_to_fuel_status(self):
+        # remainingCruisingRangeInMeters is only populated once charging.status
+        # is present; fuelStatus.secondaryEngineRange is the hybrid-specific
+        # fallback for electric range when it isn't.
+        data = {"vehicle": {
+            "charging": {"status": {"battery": {"stateOfChargeInPercent": 31}}},
+            "fuelStatus": {"secondaryEngineRange": {"remainingRangeInKm": 33}},
+        }}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.electric_range, 33.0)
+
     def test_charging_power_fields_missing_default_safely(self):
         state = VehicleState.from_api({"vehicle": {"charging": {}}})
         self.assertIsNone(state.charging_power)

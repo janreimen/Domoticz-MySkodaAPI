@@ -12,6 +12,20 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.3-alpha] - 2026-09-17
+
+### Fixed
+
+* Fixed all EV-related devices (units 30-35, 45-47) reading empty/zero on plug-in-hybrid vehicles. A real API dump from a plug-in-hybrid Kodiaq (reported via GitHub issue) showed the `charging` object nests data under `charging.status` (`battery`, `chargePowerInKw`, `state`) and `charging.settings` (`targetStateOfChargeInPercent`, `preferredChargeMode`), rather than as flat keys directly under `charging` as the parsing in `vehicle.py` assumed.
+* `Electric Range` now correctly converts `status.battery.remainingCruisingRangeInMeters` from meters to km, and falls back to `fuelStatus.secondaryEngineRange.remainingRangeInKm` (already in km) when charging status isn't populated - both confirmed against the same dump.
+* `Charging Connected` now infers `False` when `charging.status.state` is `CONNECT_CABLE`, the one state value whose meaning is unambiguous from the dump; other states are left `Unknown` rather than guessed.
+* All existing flat-key candidates are kept alongside the new nested ones, so a response shape that has them flat still works.
+* Added regression tests (`test_phev_nested_charging_status_settings`, `test_phev_electric_range_falls_back_to_fuel_status`) covering the real payload shape from the issue.
+
+### Notes
+
+* `Remaining Charging Time` and `Charge Type` were not visible in the captured dump (it was cut off before reaching them); their candidate lists were extended with the same `status.*` nesting pattern as a best guess only. `verify_charging_fields.py` was updated to check nested paths and print `fuelStatus.secondaryEngineRange` - re-run it against a hybrid vehicle to confirm these two before trusting them.
+
 ## [0.4.3-alpha] - 2026-09-16
 
 ### Changed
