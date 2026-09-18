@@ -12,6 +12,19 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.3-alpha] - 2026-09-18
+
+### Fixed
+
+* Confirmed `Remaining Charging Time` (`charging.status.remainingTimeToFullyChargedInMinutes`) against a second real dump from the same plug-in-hybrid Kodiaq, taken mid-charge - it was only a best guess as of 2026-09-17. No candidate-list change was needed; the nested path was already the first candidate and matched exactly.
+* `Charging Connected` now also infers `True` when `charging.status.state` is `CHARGING` (a car can't be charging without being connected), alongside the existing `CONNECT_CABLE` -> `False` inference. Other states remain `Unknown`.
+* Added a regression test (`test_phev_charging_active_confirms_remaining_time_and_connected`) covering the mid-charge payload.
+
+### Notes
+
+* `Charge Type` is still unconfirmed - neither the idle nor the mid-charge dump contains a `type`/`chargeType` key anywhere under `charging`. It's possible this endpoint doesn't expose AC/DC type at all; worth revisiting whether that device should stay in 0.4.3 if no key ever turns up.
+* The mid-charge dump also revealed two fields not currently surfaced anywhere: `charging.status.chargingRateInKilometersPerHour` (62.0 in this case) and `charging.status.fullyChargedAt` (an ISO timestamp). Not wired up - flagging in case they're worth their own devices later.
+
 ## [0.4.3-alpha] - 2026-09-17
 
 ### Fixed

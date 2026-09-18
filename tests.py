@@ -105,6 +105,41 @@ class VehicleParserTests(unittest.TestCase):
         state = VehicleState.from_api(data)
         self.assertEqual(state.electric_range, 33.0)
 
+    def test_phev_charging_active_confirms_remaining_time_and_connected(self):
+        # Second real dump from the same plug-in-hybrid Kodiaq, this time
+        # mid-charge. Confirms charging.status.remainingTimeToFullyChargedInMinutes
+        # (previously only a guess) and that charging_connected can be safely
+        # inferred True from a "CHARGING" state, alongside the earlier
+        # "CONNECT_CABLE" -> False case.
+        data = {"vehicle": {"charging": {
+            "isVehicleInSavedLocation": False,
+            "carCapturedTimestamp": "2026-09-18T18:09:35Z",
+            "settings": {
+                "preferredChargeMode": "MANUAL",
+                "targetStateOfChargeInPercent": 80,
+            },
+            "status": {
+                "battery": {
+                    "remainingCruisingRangeInMeters": 49000,
+                    "stateOfChargeInPercent": 41,
+                },
+                "chargePowerInKw": 10.0,
+                "chargingRateInKilometersPerHour": 62.0,
+                "fullyChargedAt": "2026-09-18T18:49:35Z",
+                "remainingTimeToFullyChargedInMinutes": 40,
+                "state": "CHARGING",
+            },
+        }}}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.charging_state, "CHARGING")
+        self.assertEqual(state.battery_soc, 41.0)
+        self.assertEqual(state.electric_range, 49.0)
+        self.assertTrue(state.charging_connected)
+        self.assertEqual(state.charge_target, 80.0)
+        self.assertEqual(state.charge_mode, "MANUAL")
+        self.assertEqual(state.charging_power, 10.0)
+        self.assertEqual(state.remaining_charging_time, 40.0)
+
     def test_charging_power_fields_missing_default_safely(self):
         state = VehicleState.from_api({"vehicle": {"charging": {}}})
         self.assertIsNone(state.charging_power)

@@ -64,13 +64,15 @@ def main():
 
     print("--- candidate key check against vehicle.py's current lookups ---")
     # Keep this in sync with the `first(charging, ...)` candidate lists in
-    # vehicle.py's from_api(). Confirmed as of 2026-09-17 against a real
-    # plug-in-hybrid Kodiaq dump: charging_state, battery_soc, electric_range
-    # (via status.battery.remainingCruisingRangeInMeters, in meters),
-    # charge_target and charge_mode all live under charging.status /
-    # charging.settings. remaining_charging_time and charge_type below are
-    # still unconfirmed best guesses - that dump was cut off before reaching
-    # them, so treat any match here as a hint to verify, not a certainty.
+    # vehicle.py's from_api(). Confirmed against two real plug-in-hybrid
+    # Kodiaq dumps (idle 2026-09-17, mid-charge 2026-09-18): charging_state,
+    # battery_soc, electric_range (via
+    # status.battery.remainingCruisingRangeInMeters, in meters), charge_target,
+    # charge_mode, charging_power and remaining_charging_time all live under
+    # charging.status / charging.settings. charge_type below is still an
+    # unconfirmed guess - neither dump contains a "type" key anywhere under
+    # `charging`, so treat any match here as a hint to verify, not a
+    # certainty; it may simply not be exposed by this endpoint.
     candidates = {
         "charging_power": ["status.chargePowerInKw", "chargePowerInKw", "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower"],
         "remaining_charging_time": ["status.remainingTimeToFullyChargedInMinutes", "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime"],

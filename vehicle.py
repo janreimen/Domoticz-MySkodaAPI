@@ -164,15 +164,17 @@ class VehicleState:
         fuel_captured = safe_str(first(primary, "carCapturedTimestamp", default=first(fuel, "carCapturedTimestamp", default="")))
         odo_captured = safe_str(first(odo, "carCapturedTimestamp", default=""))
 
-        # 2026-09-17: a real API dump from a plug-in-hybrid Kodiaq (reported via
-        # GitHub issue) confirmed this endpoint nests charging data one level
+        # 2026-09-17/18: two real API dumps from a plug-in-hybrid Kodiaq
+        # (reported via GitHub issue - one idle/CONNECT_CABLE, one actively
+        # CHARGING) confirmed this endpoint nests charging data one level
         # deeper than the flat lookups below originally assumed:
-        #   charging.status.state                                  (was read as flat charging.state)
-        #   charging.status.battery.stateOfChargeInPercent         (was read as flat charging.stateOfChargeInPercent)
-        #   charging.status.battery.remainingCruisingRangeInMeters (METERS; no flat equivalent existed)
-        #   charging.status.chargePowerInKw                        (was read as flat charging.chargingPowerInKw - also misnamed)
-        #   charging.settings.targetStateOfChargeInPercent         (was read as flat charging.targetStateOfChargeInPercent)
-        #   charging.settings.preferredChargeMode                  (key wasn't in the candidate list at all)
+        #   charging.status.state                                    (was read as flat charging.state)
+        #   charging.status.battery.stateOfChargeInPercent           (was read as flat charging.stateOfChargeInPercent)
+        #   charging.status.battery.remainingCruisingRangeInMeters   (METERS; no flat equivalent existed)
+        #   charging.status.chargePowerInKw                          (was read as flat charging.chargingPowerInKw - also misnamed)
+        #   charging.status.remainingTimeToFullyChargedInMinutes     (confirmed by the CHARGING dump; was a guess before)
+        #   charging.settings.targetStateOfChargeInPercent           (was read as flat charging.targetStateOfChargeInPercent)
+        #   charging.settings.preferredChargeMode                    (key wasn't in the candidate list at all)
         # The nested paths are added alongside the old flat candidates (first()
         # already supports dotted paths) rather than replacing them, so a
         # response shape that does have them flat still works.
@@ -197,14 +199,17 @@ class VehicleState:
 
         charging_connected = boolish(first(charging, "connected", "isConnected", "pluggedIn", "chargingCableConnected", default=None))
         if charging_connected is None:
-            # No explicit connected/plugged-in boolean appears anywhere in the
-            # captured dump. "CONNECT_CABLE" is the one state value whose
-            # meaning is unambiguous from the dump itself (the API telling the
-            # user to plug in), so treat it as a confirmed "not connected"
-            # signal. Other state values are left as None (Unknown) rather than
-            # guessed - add them here once confirmed against a real dump.
-            if state_text(first(charging, "status.state", "state", default="")).strip().upper() == "CONNECT_CABLE":
+            # No explicit connected/plugged-in boolean appears anywhere in
+            # either captured dump. Both "CONNECT_CABLE" (not connected - the
+            # API telling the user to plug in) and "CHARGING" (must be
+            # connected to be charging) are now confirmed, unambiguous
+            # signals. Other state values are left as None (Unknown) rather
+            # than guessed - add them here once confirmed against a real dump.
+            raw_charge_state = state_text(first(charging, "status.state", "state", default="")).strip().upper()
+            if raw_charge_state == "CONNECT_CABLE":
                 charging_connected = False
+            elif raw_charge_state == "CHARGING":
+                charging_connected = True
         charge_target = safe_float(first(
             charging,
             "settings.targetStateOfChargeInPercent",
@@ -218,17 +223,6 @@ class VehicleState:
             default="Unknown",
         ))
         charging_captured = safe_str(first(charging, "carCapturedTimestamp", "capturedAt", default=""))
-
-        # NOTE (0.4.3-alpha): remaining_charging_time and charge_type were not
-        # visible in the captured dump (the pasted JSON was cut off before
-        # reaching them), so their nested candidates below are still an
-        # unconfirmed best guess following the same status.* pattern as the
-        # fields above - not yet verified against a captured raw response for
-        # this account/vehicle. Verify with a one-off Debug dump of `charging`
-        # (or re-run verify_charging_fields.py, which prints the full object)
-        # before relying on these in production; add any missing key you find
-        # to the candidate list rather than replacing it, so both naming
-        # conventions keep working across API revisions.
         charging_power = safe_float(first(
             charging,
             "status.chargePowerInKw",
@@ -241,6 +235,13 @@ class VehicleState:
             "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime",
             default=None,
         ))
+
+        # NOTE (0.4.3-alpha): charge_type is still unconfirmed. Neither the
+        # idle nor the actively-CHARGING dump contains a "type" field anywhere
+        # under `charging` (AC vs. DC) - it may simply not be exposed by this
+        # endpoint. The candidates below are an unchanged best guess; verify
+        # with verify_charging_fields.py before relying on this device, and
+        # consider whether it should exist at all if no key ever matches.
         charge_type = state_text(first(
             charging,
             "status.chargeType", "status.chargingType",
