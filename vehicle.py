@@ -236,7 +236,7 @@ class VehicleState:
             default=None,
         ))
 
-        # NOTE (0.4.3-alpha): charge_type is still unconfirmed. Neither the
+        # NOTE (as of 0.4.3.1): charge_type is still unconfirmed. Neither the
         # idle nor the actively-CHARGING dump contains a "type" field anywhere
         # under `charging` (AC vs. DC) - it may simply not be exposed by this
         # endpoint. The candidates below are an unchanged best guess; verify

@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.3-alpha**
+**Version 0.4.3.1**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -20,7 +20,7 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - Charging, battery, climate, security, fuel and telemetry diagnostics.
 - Charging power, remaining charging time and charge type (AC/DC), sourced from the same charging data already polled - no extra API call.
 - Python standard library only; no third-party runtime dependencies.
-- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3-alpha.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1.
 
 ## Requirements
 
@@ -31,6 +31,18 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - Network access from Domoticz to the MySkoda API.
 
 No third-party Python package is required by the plugin.
+
+## Supported vehicles
+
+The plugin talks to the same `vehicles/{vin}` MySkoda Public API endpoint for every model, so it should work for any Škoda in principle. This table tracks which models have actually been exercised against real API responses, versus ones still assumed to work.
+
+| Model | Code | Status |
+|---|---|---|
+| Octavia 4 Facelift | NX | In development |
+| Kodiaq II PHEV | PS | In development |
+
+- **Checked** — confirmed against a real captured API response for that model/powertrain.
+- **In development** — plugin is expected to work, but the raw API shape for this specific model/powertrain hasn't been confirmed yet; if you hit missing/zero values, please open an issue with a raw `charging`/`fuelStatus` dump (see [`verify_charging_fields.py`](./verify_charging_fields.py)).
 
 ## Installation
 
@@ -141,7 +153,7 @@ The default warning threshold is **30 days** (`API_KEY_EXPIRY_WARNING_DAYS`).
 - **Unit 43 — API Rate Reset In:** seconds until the rate-limit quota resets.
 - **Unit 44 — API Key Status:** visual API-key health.
 
-### Units 45–47 — Charging diagnostics (0.4.3-alpha)
+### Units 45–47 — Charging diagnostics (0.4.3.1)
 
 - **Unit 45 — Charging Power:** current charging power in kW.
 - **Unit 46 — Remaining Charging Time:** minutes until fully charged.
@@ -229,15 +241,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.3-alpha"
-git tag -a 0.4.3-alpha -m "Release 0.4.3-alpha"
+git commit -m "Release 0.4.3.1"
+git tag -a 0.4.3.1 -m "Release 0.4.3.1"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.3-alpha
+git push origin 0.4.3.1
 ```
 
 Do not assume the branch is `master` or `main`; check with:

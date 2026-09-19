@@ -9,7 +9,7 @@ The following versions of this project are actively supported with security upda
 - **0.4. **: ✅ Supported
 - **< 0.3**: ❌ Not Supported
 
-The current release is **0.4.3-alpha**. Older alpha releases may no longer receive security fixes; upgrading to the latest release is recommended.
+The current release is **0.4.3.1**. Older alpha releases may no longer receive security fixes; upgrading to the latest release is recommended.
 
 ## Reporting a vulnerability
 

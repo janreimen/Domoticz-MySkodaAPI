@@ -12,6 +12,18 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.3.1] - 2026-09-19
+
+First non-alpha release of the 0.4.3 line, superseding the three `0.4.3-alpha` dated entries below (2026-09-16/17/18). Consolidates that work: the PHEV nested `charging.status`/`charging.settings` parsing fix, the `remaining_charging_time` confirmation, and the `CHARGING` -> connected inference.
+
+### Added
+
+* `README.md`: new **Supported vehicles** section listing models/powertrains that have been exercised against a real captured API response ("Checked") versus ones still assumed to work ("In development").
+
+### Notes
+
+* `Charge Type` (unit 47) remains unconfirmed - no captured dump so far contains a `type`/`chargeType` key anywhere under `charging`.
+
 ## [0.4.3-alpha] - 2026-09-18
 
 ### Fixed

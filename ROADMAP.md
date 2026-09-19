@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3-alpha — Development Alpha**.
+The project is currently at **0.4.3.1 — Released**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,13 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3-alpha
+# Current State — 0.4.3.1
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.3.1 - PHEV charging-field fix
+
+Fixed units 30-35/45-47 reading empty/zero on plug-in-hybrid vehicles: the `charging` object nests data under `charging.status`/`charging.settings` rather than flat, which the 0.4.3 parsing didn't account for. See `CHANGELOG.md` for the full breakdown. `Charge Type` (unit 47) is still unconfirmed - no real dump so far has a `type` key anywhere under `charging`.
 
 ## 0.4.3 - Charging diagnostics pulled forward
 
