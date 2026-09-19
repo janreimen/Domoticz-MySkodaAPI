@@ -164,10 +164,11 @@ class VehicleState:
         fuel_captured = safe_str(first(primary, "carCapturedTimestamp", default=first(fuel, "carCapturedTimestamp", default="")))
         odo_captured = safe_str(first(odo, "carCapturedTimestamp", default=""))
 
-        # 2026-09-17/18: two real API dumps from a plug-in-hybrid Kodiaq
-        # (reported via GitHub issue - one idle/CONNECT_CABLE, one actively
-        # CHARGING) confirmed this endpoint nests charging data one level
-        # deeper than the flat lookups below originally assumed:
+        # 2026-09-17/18/19: three real API dumps from a plug-in-hybrid Kodiaq
+        # (reported via GitHub issue #9 - idle/CONNECT_CABLE, actively
+        # CHARGING, and READY_FOR_CHARGING right after a session ended)
+        # confirmed this endpoint nests charging data one level deeper than
+        # the flat lookups below originally assumed:
         #   charging.status.state                                    (was read as flat charging.state)
         #   charging.status.battery.stateOfChargeInPercent           (was read as flat charging.stateOfChargeInPercent)
         #   charging.status.battery.remainingCruisingRangeInMeters   (METERS; no flat equivalent existed)
@@ -197,18 +198,24 @@ class VehicleState:
                 default=first(fuel, "secondaryEngineRange.remainingRangeInKm", default=None),
             ))
 
+        # Computed once and reused below: the raw (unformatted) state text,
+        # or "" if no state key was found anywhere. "" is deliberately
+        # distinct from a known state value - it means we have no
+        # information at all, so nothing should be inferred from it.
+        raw_charge_state = state_text(first(charging, "status.state", "state", default="")).strip().upper()
+
         charging_connected = boolish(first(charging, "connected", "isConnected", "pluggedIn", "chargingCableConnected", default=None))
         if charging_connected is None:
             # No explicit connected/plugged-in boolean appears anywhere in
-            # either captured dump. Both "CONNECT_CABLE" (not connected - the
-            # API telling the user to plug in) and "CHARGING" (must be
-            # connected to be charging) are now confirmed, unambiguous
-            # signals. Other state values are left as None (Unknown) rather
-            # than guessed - add them here once confirmed against a real dump.
-            raw_charge_state = state_text(first(charging, "status.state", "state", default="")).strip().upper()
-            if raw_charge_state == "CONNECT_CABLE":
+            # any captured dump. "CONNECT_CABLE" (not connected - the API
+            # telling the user to plug in) and "CHARGING" (must be connected
+            # to be charging) are confirmed, unambiguous signals.
+            # "READY_FOR_CHARGING" (issue #9 - session just ended, cable
+            # still in) implies connected too. Other/unknown state values are
+            # left as None (Unknown) rather than guessed.
+            if raw_charge_state in ("CONNECT_CABLE",):
                 charging_connected = False
-            elif raw_charge_state == "CHARGING":
+            elif raw_charge_state in ("CHARGING", "READY_FOR_CHARGING"):
                 charging_connected = True
         charge_target = safe_float(first(
             charging,
@@ -229,16 +236,32 @@ class VehicleState:
             "chargePowerInKw", "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower",
             default=None,
         ))
+
+        # Issue #9: once a charge session ends, remainingTimeToFullyChargedInMinutes
+        # disappears from the API response entirely rather than being reported
+        # as 0 (confirmed by the READY_FOR_CHARGING dump - chargePowerInKw is
+        # still explicitly 0.0 there, but remainingTimeToFullyChargedInMinutes
+        # is simply absent). devices.py's _update_custom_numeric skips writes
+        # when the parsed value is None, so without this the device kept
+        # showing whatever the last real "minutes remaining" reading was,
+        # indefinitely, long after charging had actually finished. The key
+        # only appears to exist while state == CHARGING, so any other *known*
+        # state resets it to 0; a genuinely unknown state (raw_charge_state
+        # == "", i.e. no state key found at all) is left alone rather than
+        # guessed, since we have no information to act on in that case.
         remaining_charging_time = safe_float(first(
             charging,
             "status.remainingTimeToFullyChargedInMinutes",
             "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime",
             default=None,
         ))
+        if remaining_charging_time is None and raw_charge_state and raw_charge_state != "CHARGING":
+            remaining_charging_time = 0.0
 
-        # NOTE (as of 0.4.3.1): charge_type is still unconfirmed. Neither the
-        # idle nor the actively-CHARGING dump contains a "type" field anywhere
-        # under `charging` (AC vs. DC) - it may simply not be exposed by this
+        # NOTE (as of 0.4.3.1-001-alpha): charge_type is still unconfirmed.
+        # None of the three real dumps captured so far (CONNECT_CABLE,
+        # CHARGING, READY_FOR_CHARGING) contain a "type" field anywhere under
+        # `charging` (AC vs. DC) - it may simply not be exposed by this
         # endpoint. The candidates below are an unchanged best guess; verify
         # with verify_charging_fields.py before relying on this device, and
         # consider whether it should exist at all if no key ever matches.

@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.3.1**
+**Version 0.4.3.1-001-alpha**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -20,7 +20,7 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - Charging, battery, climate, security, fuel and telemetry diagnostics.
 - Charging power, remaining charging time and charge type (AC/DC), sourced from the same charging data already polled - no extra API call.
 - Python standard library only; no third-party runtime dependencies.
-- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1-001-alpha.
 
 ## Requirements
 
@@ -40,6 +40,7 @@ The plugin talks to the same `vehicles/{vin}` MySkoda Public API endpoint for ev
 |---|---|---|
 | Octavia 4 Facelift | NX | In development |
 | Kodiaq II PHEV | PS | In development |
+| Karoq Sportline 2.0 TFSI 140kW (MY2020) | NU | In development |
 
 - **Checked** — confirmed against a real captured API response for that model/powertrain.
 - **In development** — plugin is expected to work, but the raw API shape for this specific model/powertrain hasn't been confirmed yet; if you hit missing/zero values, please open an issue with a raw `charging`/`fuelStatus` dump (see [`verify_charging_fields.py`](./verify_charging_fields.py)).
@@ -153,7 +154,7 @@ The default warning threshold is **30 days** (`API_KEY_EXPIRY_WARNING_DAYS`).
 - **Unit 43 — API Rate Reset In:** seconds until the rate-limit quota resets.
 - **Unit 44 — API Key Status:** visual API-key health.
 
-### Units 45–47 — Charging diagnostics (0.4.3.1)
+### Units 45–47 — Charging diagnostics (0.4.3.1-001-alpha)
 
 - **Unit 45 — Charging Power:** current charging power in kW.
 - **Unit 46 — Remaining Charging Time:** minutes until fully charged.
@@ -241,15 +242,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.3.1"
-git tag -a 0.4.3.1 -m "Release 0.4.3.1"
+git commit -m "Release 0.4.3.1-001-alpha"
+git tag -a 0.4.3.1-001-alpha -m "Release 0.4.3.1-001-alpha"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.3.1
+git push origin 0.4.3.1-001-alpha
 ```
 
 Do not assume the branch is `master` or `main`; check with:

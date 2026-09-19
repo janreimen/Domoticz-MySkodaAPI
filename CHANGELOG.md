@@ -12,17 +12,24 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
-## [0.4.3.1] - 2026-09-19
+## [0.4.3.1-001-alpha] - 2026-09-19
 
-First non-alpha release of the 0.4.3 line, superseding the three `0.4.3-alpha` dated entries below (2026-09-16/17/18). Consolidates that work: the PHEV nested `charging.status`/`charging.settings` parsing fix, the `remaining_charging_time` confirmation, and the `CHARGING` -> connected inference.
+Renamed from the plain `0.4.3.1` tag used earlier today, back to an alpha pre-release identifier - issue #9 (below) came in before that release had been confirmed by anyone, so it's being folded into this same version rather than shipped as a separate `0.4.3.2`. Supersedes the three `0.4.3-alpha` dated entries further below (2026-09-16/17/18). Consolidates: the PHEV nested `charging.status`/`charging.settings` parsing fix, the `remaining_charging_time` confirmation, the `CHARGING` -> connected inference, and the fixes below.
+
+### Fixed
+
+* **Issue #9**: `Remaining Charging Time` (unit 46) stayed stuck on its last real value long after a charge session had ended. Root cause: a third real dump from the same plug-in-hybrid Kodiaq, captured right after charging stopped (`state: "READY_FOR_CHARGING"`, `chargePowerInKw: 0.0`), showed that `remainingTimeToFullyChargedInMinutes` disappears from the API response entirely once a session ends - it isn't reported as `0`. Since the device-update code intentionally skips writes on missing/`None` values (to avoid clobbering good data with transient gaps), the device just never got updated again. Fixed by resetting `remaining_charging_time` to `0` whenever a known state other than `CHARGING` is seen and the key is absent; a genuinely unknown state (no `state` key found at all) is left untouched rather than guessed.
+* `Charging Connected` now also infers `True` for `READY_FOR_CHARGING` (cable still connected right after a session ends), alongside the existing `CONNECT_CABLE` -> `False` and `CHARGING` -> `True` inferences.
+* Added regression tests `test_phev_ready_for_charging_resets_remaining_time` and `test_remaining_charging_time_not_guessed_on_unknown_state`.
 
 ### Added
 
 * `README.md`: new **Supported vehicles** section listing models/powertrains that have been exercised against a real captured API response ("Checked") versus ones still assumed to work ("In development").
+* Ongoing test coverage now also includes a Karoq Sportline 2.0 TFSI 140kW (MY2020) - a non-PHEV vehicle, so it mainly exercises the base telemetry path rather than the charging-specific fixes above.
 
 ### Notes
 
-* `Charge Type` (unit 47) remains unconfirmed - no captured dump so far contains a `type`/`chargeType` key anywhere under `charging`.
+* `Charge Type` (unit 47) remains unconfirmed - none of the three real dumps captured so far (`CONNECT_CABLE`, `CHARGING`, `READY_FOR_CHARGING`) contain a `type`/`chargeType` key anywhere under `charging`.
 
 ## [0.4.3-alpha] - 2026-09-18
 

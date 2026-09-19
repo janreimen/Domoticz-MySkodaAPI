@@ -93,6 +93,47 @@ class VehicleParserTests(unittest.TestCase):
         self.assertEqual(state.charge_target, 80.0)
         self.assertEqual(state.charge_mode, "MANUAL")
         self.assertEqual(state.charging_power, 0.0)
+        self.assertEqual(state.remaining_charging_time, 0.0)
+
+    def test_phev_ready_for_charging_resets_remaining_time(self):
+        # Issue #9: third real dump from the same plug-in-hybrid Kodiaq,
+        # captured right after a charge session ended. state is
+        # READY_FOR_CHARGING, chargePowerInKw is explicitly 0.0, but
+        # remainingTimeToFullyChargedInMinutes is entirely absent from the
+        # response (unlike the CHARGING dump, where it was present). Without
+        # the fix this device would stay stuck on its last real reading.
+        data = {"vehicle": {"charging": {
+            "isVehicleInSavedLocation": False,
+            "carCapturedTimestamp": "2026-09-19T09:01:45Z",
+            "settings": {
+                "preferredChargeMode": "MANUAL",
+                "targetStateOfChargeInPercent": 80,
+            },
+            "status": {
+                "battery": {
+                    "remainingCruisingRangeInMeters": 93000,
+                    "stateOfChargeInPercent": 82,
+                },
+                "chargePowerInKw": 0.0,
+                "state": "READY_FOR_CHARGING",
+            },
+        }}}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.charging_state, "READY_FOR_CHARGING")
+        self.assertEqual(state.battery_soc, 82.0)
+        self.assertEqual(state.electric_range, 93.0)
+        self.assertTrue(state.charging_connected)
+        self.assertEqual(state.charging_power, 0.0)
+        self.assertEqual(state.remaining_charging_time, 0.0)
+
+    def test_remaining_charging_time_not_guessed_on_unknown_state(self):
+        # When there's no state key anywhere (raw_charge_state == ""), we
+        # have no basis to reset remaining_charging_time - it should stay
+        # None (and therefore untouched/stale in Domoticz) rather than being
+        # guessed at 0.
+        data = {"vehicle": {"charging": {"status": {"chargePowerInKw": 1.5}}}}
+        state = VehicleState.from_api(data)
+        self.assertIsNone(state.remaining_charging_time)
 
     def test_phev_electric_range_falls_back_to_fuel_status(self):
         # remainingCruisingRangeInMeters is only populated once charging.status

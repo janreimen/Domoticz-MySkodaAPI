@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3.1 — Released**.
+The project is currently at **0.4.3.1-001-alpha — Development Alpha**.
 
 The roadmap deliberately separates:
 
@@ -15,13 +15,17 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3.1
+# Current State — 0.4.3.1-001-alpha
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
 
-## 0.4.3.1 - PHEV charging-field fix
+## 0.4.3.1-001-alpha - PHEV charging-field fixes
 
-Fixed units 30-35/45-47 reading empty/zero on plug-in-hybrid vehicles: the `charging` object nests data under `charging.status`/`charging.settings` rather than flat, which the 0.4.3 parsing didn't account for. See `CHANGELOG.md` for the full breakdown. `Charge Type` (unit 47) is still unconfirmed - no real dump so far has a `type` key anywhere under `charging`.
+Fixed units 30-35/45-47 reading empty/zero on plug-in-hybrid vehicles: the `charging` object nests data under `charging.status`/`charging.settings` rather than flat, which the 0.4.3 parsing didn't account for. See `CHANGELOG.md` for the full breakdown.
+
+* Issue #9: `Remaining Charging Time` (unit 46) got stuck on its last value long after a charge session ended. Root cause: `remainingTimeToFullyChargedInMinutes` disappears from the API entirely once state leaves `CHARGING` (confirmed via a `READY_FOR_CHARGING` dump), rather than being reported as 0 - and the device-update code skips writes on missing values by design. Now reset to 0 whenever a known non-`CHARGING` state is seen and the key is absent.
+* `Charge Type` (unit 47) is still unconfirmed - no real dump so far (`CONNECT_CABLE`, `CHARGING`, `READY_FOR_CHARGING`) has a `type` key anywhere under `charging`.
+* Ongoing test coverage now also includes a Karoq Sportline 2.0 TFSI 140kW (MY2020) - non-PHEV, so mainly exercises the base telemetry path rather than the charging fixes above.
 
 ## 0.4.3 - Charging diagnostics pulled forward
 
