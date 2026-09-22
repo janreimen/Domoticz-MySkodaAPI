@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3.1-001-alpha — Development Alpha**.
+The project is currently at **0.4.3.1-002-alpha — Development Alpha**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,13 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3.1-001-alpha
+# Current State — 0.4.3.1-002-alpha
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.3.1-002-alpha - Known-compatible vehicles documented
+
+Documentation-only build, no functional code changes. Added a "Known-compatible models" table to `README.md`, sourced from Škoda's own MyŠkoda app description (Enyaq, Enyaq Coupé, Elroq, Scala, Kamiq, Fabia Mk4, Octavia iV, Superb/Superb iV, Karoq 2020+) - vehicles confirmed to have MyŠkoda/Connect support at all, kept separate from the tested table since nobody has tried this plugin against them yet.
 
 ## 0.4.3.1-001-alpha - PHEV charging-field fixes
 

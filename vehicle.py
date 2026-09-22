@@ -258,7 +258,7 @@ class VehicleState:
         if remaining_charging_time is None and raw_charge_state and raw_charge_state != "CHARGING":
             remaining_charging_time = 0.0
 
-        # NOTE (as of 0.4.3.1-001-alpha): charge_type is still unconfirmed.
+        # NOTE (as of 0.4.3.1-002-alpha): charge_type is still unconfirmed.
         # None of the three real dumps captured so far (CONNECT_CABLE,
         # CHARGING, READY_FOR_CHARGING) contain a "type" field anywhere under
         # `charging` (AC vs. DC) - it may simply not be exposed by this

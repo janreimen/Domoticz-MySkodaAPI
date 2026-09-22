@@ -12,6 +12,14 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.3.1-002-alpha] - 2026-09-22
+
+Documentation-only build - no functional code changes since `0.4.3.1-001-alpha`. All 29 tests unchanged.
+
+### Added
+
+* `README.md`: split **Supported vehicles** into two tables. The existing tested table (Octavia 4 Facelift, Kodiaq II PHEV, Karoq Sportline) is unchanged. New **Known-compatible models** table lists vehicles Škoda's own MyŠkoda app description confirms have MyŠkoda/Connect support at all (Enyaq, Enyaq Coupé, Elroq, Scala, Kamiq, Fabia Mk4, Octavia iV, Superb/Superb iV, Karoq 2020+) - a prerequisite for reaching this plugin's API, independent of whether the JSON shape has been confirmed. Explicitly marked as untested with this plugin; model codes left blank (`—`) rather than guessed, since only Octavia (`NX`), Kodiaq II (`PS`) and Karoq (`NU`) have been properly sourced so far.
+
 ## [0.4.3.1-001-alpha] - 2026-09-19
 
 Renamed from the plain `0.4.3.1` tag used earlier today, back to an alpha pre-release identifier - issue #9 (below) came in before that release had been confirmed by anyone, so it's being folded into this same version rather than shipped as a separate `0.4.3.2`. Supersedes the three `0.4.3-alpha` dated entries further below (2026-09-16/17/18). Consolidates: the PHEV nested `charging.status`/`charging.settings` parsing fix, the `remaining_charging_time` confirmation, the `CHARGING` -> connected inference, and the fixes below.
