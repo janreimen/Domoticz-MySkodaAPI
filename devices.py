@@ -56,6 +56,10 @@ class DeviceManager:
         ("charging_power", "Charging Power", "Custom Sensor", "custom_kw"),
         ("remaining_charging_time", "Remaining Charging Time", "Custom Sensor", "custom_minutes"),
         ("charge_type", "Charge Type", "Text", "text"),
+        # New in 0.4.3.1-003-alpha (v1.1.0 API: plugLockState). Reuses the
+        # selector_security_lock mode already defined for doors_locked below -
+        # same Unknown|Locked|Unlocked shape, same meaning.
+        ("plug_lock_state", "Plug Lock State", "Selector", "selector_security_lock"),
     ]
 
     COUNTER_OPTIONS = {"ValueQuantity": "Distance", "ValueUnits": "km"}
@@ -279,6 +283,7 @@ class DeviceManager:
             UNITS["charging_state"]: ("charging_state", self._normalized(state.charging_state)),
             UNITS["charging_connected"]: ("charging_connected", self._connected_text(state.charging_connected)),
             UNITS["charge_mode"]: ("charge_mode", self._normalized(state.charge_mode)),
+            UNITS["plug_lock_state"]: ("plug_lock_state", self._locked_text(state.plug_lock_state)),
         }
         item = by_unit.get(unit)
         if item:
@@ -428,6 +433,7 @@ class DeviceManager:
         self._update_custom_numeric("charging_power", state.charging_power, self.CUSTOM_KW_OPTIONS, decimals=1)
         self._update_custom_numeric("remaining_charging_time", state.remaining_charging_time, self.CUSTOM_MINUTES_OPTIONS)
         self.update_text("charge_type", self._normalized(state.charge_type))
+        self._update_selector("plug_lock_state", self._locked_text(state.plug_lock_state))
         self.update_text("charging_captured", state.charging_captured_at or "UNKNOWN")
         self.update_text("fuel_captured", state.fuel_captured_at or "UNKNOWN")
         self.update_text("odometer_captured", state.odometer_captured_at or "UNKNOWN")

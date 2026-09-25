@@ -77,10 +77,20 @@ def main():
     # below is still an unconfirmed guess - none of the three dumps contain a
     # "type" key anywhere under `charging`, so treat any match here as a hint
     # to verify, not a certainty; it may simply not be exposed by this endpoint.
+    #
+    # v1.1.0 API release: status.plugConnectionState (CONNECTED/DISCONNECTED)
+    # is documented directly in the API's own release notes, so it's treated
+    # as confirmed without needing a captured dump. plug_lock_state below
+    # checks for its sibling, status.plugLockState (LOCKED/UNLOCKED) - also
+    # documented, but included in this check since both are optional fields
+    # and it's worth confirming your account's API version actually sends
+    # them before relying on unit 48.
     candidates = {
         "charging_power": ["status.chargePowerInKw", "chargePowerInKw", "chargingPowerInKw", "chargingPowerInKW", "powerInKw", "chargingPower"],
         "remaining_charging_time": ["status.remainingTimeToFullyChargedInMinutes", "remainingTimeToFullyChargedInMinutes", "remainingChargingTimeInMinutes", "remainingChargingTime"],
         "charge_type": ["status.chargeType", "status.chargingType", "chargeType", "type", "chargingType"],
+        "plug_connection_state (v1.1.0)": ["status.plugConnectionState", "plugConnectionState"],
+        "plug_lock_state (v1.1.0)": ["status.plugLockState", "plugLockState"],
     }
 
     def lookup(data, path):

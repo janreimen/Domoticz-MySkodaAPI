@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3.1-002-alpha — Development Alpha**.
+The project is currently at **0.4.3.1-003-alpha — Development Alpha**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,17 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3.1-002-alpha
+# Current State — 0.4.3.1-003-alpha
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.3.1-003-alpha - v1.1.0 API: direct plug state
+
+MySkoda API v1.1.0 release: `charging.status` now optionally carries the plug state directly via `plugConnectionState` (CONNECTED/DISCONNECTED) and `plugLockState` (LOCKED/UNLOCKED), instead of requiring it to be inferred from the derived charging state alone.
+
+* Unit 33 (Charging Connected) now prefers `plugConnectionState` when present, falling back to the existing derived-state heuristic when it's absent (the field is optional).
+* New Unit 48 (Plug Lock State) exposes `plugLockState` - no prior equivalent existed. Reuses the existing `selector_security_lock` mode.
+* Confirmed the plugin's existing fallback logic already matched the API's own guarantees for the derived state (omitted state is never read as disconnected; unrecognized states are left as Unknown rather than guessed) - no behavior change needed there.
 
 ## 0.4.3.1-002-alpha - Known-compatible vehicles documented
 

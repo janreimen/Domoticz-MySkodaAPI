@@ -135,6 +135,48 @@ class VehicleParserTests(unittest.TestCase):
         state = VehicleState.from_api(data)
         self.assertIsNone(state.remaining_charging_time)
 
+    def test_v110_plug_connection_state_preferred_over_derived_state(self):
+        # v1.1.0 API release: plugConnectionState is the new authoritative
+        # source for charging_connected. Use a derived state the fallback
+        # heuristic would NOT otherwise recognize (an unknown/future value),
+        # to prove plugConnectionState alone is enough - no reliance on the
+        # derived-state fallback at all.
+        data = {"vehicle": {"charging": {"status": {
+            "state": "SOME_FUTURE_STATE",
+            "plugConnectionState": "CONNECTED",
+        }}}}
+        state = VehicleState.from_api(data)
+        self.assertTrue(state.charging_connected)
+
+        data = {"vehicle": {"charging": {"status": {
+            "state": "SOME_FUTURE_STATE",
+            "plugConnectionState": "DISCONNECTED",
+        }}}}
+        state = VehicleState.from_api(data)
+        self.assertFalse(state.charging_connected)
+
+    def test_v110_plug_connection_state_absent_falls_back_to_derived_state(self):
+        # plugConnectionState is optional per the API's own release notes;
+        # when it's missing, the existing derived-state heuristic still
+        # applies unchanged.
+        data = {"vehicle": {"charging": {"status": {"state": "CONNECT_CABLE"}}}}
+        state = VehicleState.from_api(data)
+        self.assertFalse(state.charging_connected)
+
+    def test_v110_plug_lock_state(self):
+        data = {"vehicle": {"charging": {"status": {"plugLockState": "LOCKED"}}}}
+        state = VehicleState.from_api(data)
+        self.assertTrue(state.plug_lock_state)
+
+        data = {"vehicle": {"charging": {"status": {"plugLockState": "UNLOCKED"}}}}
+        state = VehicleState.from_api(data)
+        self.assertFalse(state.plug_lock_state)
+
+        # Optional field: absent means unknown, not guessed.
+        data = {"vehicle": {"charging": {"status": {"chargePowerInKw": 1.0}}}}
+        state = VehicleState.from_api(data)
+        self.assertIsNone(state.plug_lock_state)
+
     def test_phev_electric_range_falls_back_to_fuel_status(self):
         # remainingCruisingRangeInMeters is only populated once charging.status
         # is present; fuelStatus.secondaryEngineRange is the hybrid-specific
@@ -225,7 +267,7 @@ class DeviceModelTests(unittest.TestCase):
 
     def test_all_units_are_contiguous(self):
         from constants import UNITS
-        self.assertEqual(sorted(UNITS.values()), list(range(1, 48)))
+        self.assertEqual(sorted(UNITS.values()), list(range(1, 49)))
 
 
 class DistanceDeltaTests(unittest.TestCase):
@@ -276,7 +318,8 @@ class TelemetryTests(unittest.TestCase):
         self.assertEqual(UNITS["charging_power"], 45)
         self.assertEqual(UNITS["remaining_charging_time"], 46)
         self.assertEqual(UNITS["charge_type"], 47)
-        self.assertEqual(sorted(UNITS.values()), list(range(1, 48)))
+        self.assertEqual(UNITS["plug_lock_state"], 48)
+        self.assertEqual(sorted(UNITS.values()), list(range(1, 49)))
 
 
 class NativeStateSensorTests(unittest.TestCase):

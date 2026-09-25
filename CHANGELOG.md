@@ -12,6 +12,26 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.3.1-003-alpha] - 2026-09-25
+
+MySkoda API v1.1.0 release: `charging.status` now optionally carries the plug state directly, rather than requiring it to be inferred from the derived charging state alone.
+
+### Added
+
+* New optional API fields handled: `status.plugConnectionState` (`CONNECTED`/`DISCONNECTED`) and `status.plugLockState` (`LOCKED`/`UNLOCKED`).
+* **Unit 48 - Plug Lock State**: new read-only Selector device (`Unknown`/`Locked`/`Unlocked`), reusing the existing `selector_security_lock` mode already defined for `doors_locked`. Appended after unit 47, existing units 1-47 unchanged.
+* 5 new regression tests covering both fields, including the case where `plugConnectionState` and the derived state would otherwise disagree.
+
+### Changed
+
+* **Unit 33 - Charging Connected**: `plugConnectionState` is now the preferred, authoritative source, used ahead of the existing heuristic that inferred connection state from the derived charging state (`CONNECT_CABLE`/`CHARGING`/`READY_FOR_CHARGING`). That heuristic is kept as a fallback for responses without this field, since it's documented as optional.
+* `verify_charging_fields.py` now also checks for `plugConnectionState`/`plugLockState` in a captured dump, and `restore_selector()` in `devices.py` now handles unit 48 (so manually clicking the selector in the Domoticz UI reverts it to the real cached value, consistent with the other read-only selectors).
+
+### Notes
+
+* The v1.1.0 release notes also clarify that an *omitted* derived charging state must never be read as "disconnected", and that new derived-state values may be added over time. Both were already true of this plugin's existing fallback logic (it only acts on explicitly recognized states, and treats an absent state as unknown rather than disconnected) - no behavior change was needed there, only confirmation that it already matched the API's guarantees.
+* `Charge Type` (unit 47) remains unconfirmed - unrelated to this release; still no real dump contains a `type`/`chargeType` key.
+
 ## [0.4.3.1-002-alpha] - 2026-09-22
 
 Documentation-only build - no functional code changes since `0.4.3.1-001-alpha`. All 29 tests unchanged.

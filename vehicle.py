@@ -93,6 +93,7 @@ class VehicleState:
     charging_power: Optional[float] = None
     remaining_charging_time: Optional[float] = None
     charge_type: str = "Unknown"
+    plug_lock_state: Optional[bool] = None
     charging_captured_at: str = ""
     fuel_captured_at: str = ""
     odometer_captured_at: str = ""
@@ -204,15 +205,35 @@ class VehicleState:
         # information at all, so nothing should be inferred from it.
         raw_charge_state = state_text(first(charging, "status.state", "state", default="")).strip().upper()
 
+        # v1.1.0 API release: charging.status can now optionally carry the
+        # plug state directly - plugConnectionState (CONNECTED/DISCONNECTED)
+        # and plugLockState (LOCKED/UNLOCKED) - instead of requiring it to be
+        # inferred from the derived state above. Per the API's own release
+        # notes: an omitted derived state must never be read as
+        # "disconnected", and new derived-state values may appear over time.
+        # Both were already true of the fallback below (it only acts on
+        # states it explicitly recognizes, and "" from an omitted state is
+        # never treated as CONNECT_CABLE) - this just adds the more direct,
+        # authoritative source and prefers it when present.
+        raw_plug_connection_state = state_text(first(charging, "status.plugConnectionState", "plugConnectionState", default="")).strip().upper()
+        raw_plug_lock_state = state_text(first(charging, "status.plugLockState", "plugLockState", default="")).strip().upper()
+        plug_lock_state = True if raw_plug_lock_state == "LOCKED" else (False if raw_plug_lock_state == "UNLOCKED" else None)
+
         charging_connected = boolish(first(charging, "connected", "isConnected", "pluggedIn", "chargingCableConnected", default=None))
+        if charging_connected is None and raw_plug_connection_state:
+            if raw_plug_connection_state == "CONNECTED":
+                charging_connected = True
+            elif raw_plug_connection_state == "DISCONNECTED":
+                charging_connected = False
         if charging_connected is None:
-            # No explicit connected/plugged-in boolean appears anywhere in
-            # any captured dump. "CONNECT_CABLE" (not connected - the API
-            # telling the user to plug in) and "CHARGING" (must be connected
-            # to be charging) are confirmed, unambiguous signals.
-            # "READY_FOR_CHARGING" (issue #9 - session just ended, cable
-            # still in) implies connected too. Other/unknown state values are
-            # left as None (Unknown) rather than guessed.
+            # Fallback for responses without plugConnectionState (it's
+            # optional, so older API versions or some vehicles may omit it).
+            # "CONNECT_CABLE" (not connected - the API telling the user to
+            # plug in) and "CHARGING" (must be connected to be charging) are
+            # confirmed, unambiguous signals. "READY_FOR_CHARGING" (issue #9
+            # - session just ended, cable still in) implies connected too.
+            # Other/unknown state values are left as None (Unknown) rather
+            # than guessed.
             if raw_charge_state in ("CONNECT_CABLE",):
                 charging_connected = False
             elif raw_charge_state in ("CHARGING", "READY_FOR_CHARGING"):
@@ -258,7 +279,7 @@ class VehicleState:
         if remaining_charging_time is None and raw_charge_state and raw_charge_state != "CHARGING":
             remaining_charging_time = 0.0
 
-        # NOTE (as of 0.4.3.1-002-alpha): charge_type is still unconfirmed.
+        # NOTE (as of 0.4.3.1-003-alpha): charge_type is still unconfirmed.
         # None of the three real dumps captured so far (CONNECT_CABLE,
         # CHARGING, READY_FOR_CHARGING) contain a "type" field anywhere under
         # `charging` (AC vs. DC) - it may simply not be exposed by this
@@ -286,7 +307,7 @@ class VehicleState:
             electric_range=electric_range, charging_connected=charging_connected,
             charge_target=charge_target, charge_mode=charge_mode,
             charging_power=charging_power, remaining_charging_time=remaining_charging_time,
-            charge_type=charge_type,
+            charge_type=charge_type, plug_lock_state=plug_lock_state,
             charging_captured_at=charging_captured, fuel_captured_at=fuel_captured,
             odometer_captured_at=odo_captured, api_errors=errors,
             supported_operations=[(x.get("name") if isinstance(x, dict) else str(x)) for x in operations],

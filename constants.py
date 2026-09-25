@@ -1,4 +1,4 @@
-PLUGIN_VERSION = "0.4.3.1-002-alpha"
+PLUGIN_VERSION = "0.4.3.1-003-alpha"
 PLUGIN_KEY = "MySkodaAPI"
 PLUGIN_NAME = "MySkoda API Integration"
 PLUGIN_URL = "https://github.com/janreimen/Domoticz-MySkodaAPI"
@@ -68,6 +68,9 @@ UNITS = {
     "charging_power": 45,
     "remaining_charging_time": 46,
     "charge_type": 47,
+    # New in 0.4.3.1-003-alpha (v1.1.0 API release: plugLockState). Appended
+    # after 47 for the same upgrade-safety reason as above.
+    "plug_lock_state": 48,
 }
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}

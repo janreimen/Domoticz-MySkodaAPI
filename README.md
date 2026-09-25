@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.3.1-002-alpha**
+**Version 0.4.3.1-003-alpha**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -20,7 +20,7 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - Charging, battery, climate, security, fuel and telemetry diagnostics.
 - Charging power, remaining charging time and charge type (AC/DC), sourced from the same charging data already polled - no extra API call.
 - Python standard library only; no third-party runtime dependencies.
-- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1-001-alpha.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1-001-alpha, unit 48 in 0.4.3.1-003-alpha.
 
 ## Requirements
 
@@ -181,6 +181,19 @@ These are parsed from the `charging` object already fetched for units 30–35; n
 
 The JSON field names used to extract these three values were not available in the published API documentation at the time of writing and have not yet been confirmed against a live response for every vehicle/account. Run `python3 verify_charging_fields.py <API_KEY> <VIN>` once (see "Development and tests" below) to confirm the field names for your vehicle before relying on these units; if they don't match, add the real key names to the candidate lists in `vehicle.py`.
 
+### Unit 48 — Plug Lock State (0.4.3.1-003-alpha)
+
+- **Unit 48 — Plug Lock State:** `Locked` or `Unlocked`, from the API's `plugLockState` field.
+
+Added following the MySkoda API's v1.1.0 release, which introduced two new optional fields under `charging.status`:
+
+- **`plugConnectionState`** (`CONNECTED`/`DISCONNECTED`) - now the preferred, authoritative source for **Unit 33 — Charging Connected**, used ahead of the older heuristic that inferred it from the derived charging state. That heuristic is kept as a fallback for responses without this field.
+- **`plugLockState`** (`LOCKED`/`UNLOCKED`) - new information with no prior equivalent, exposed as Unit 48 above.
+
+The v1.1.0 release notes also clarify two things about the *derived* charging state (`charging.status.state` - `CONNECT_CABLE`, `CHARGING`, `READY_FOR_CHARGING`, etc.): an omitted value never means the plug was reported as disconnected, and new values may be added over time. Both were already true of this plugin's fallback logic (it only acts on states it explicitly recognizes, and never infers "disconnected" from an absent state) - no behavior change was needed there, only confirmation.
+
+Both new fields are optional, so vehicles/accounts on an older API revision will simply have `charging_connected` fall back to the existing heuristic and `plug_lock_state` stay `Unknown`.
+
 ## API behavior
 
 The plugin retrieves vehicle data using:
@@ -245,7 +258,7 @@ For a basic source-tree syntax check without Domoticz, use:
 python3 -m py_compile *.py
 ```
 
-`verify_charging_fields.py` is a standalone helper (no Domoticz dependency) that fetches one real API response and checks the raw `charging` object against the field-name candidates used for units 45–47:
+`verify_charging_fields.py` is a standalone helper (no Domoticz dependency) that fetches one real API response and checks the raw `charging` object against the field-name candidates used for units 45–47, plus the v1.1.0 `plugConnectionState`/`plugLockState` fields used by units 33/48:
 
 ```bash
 python3 verify_charging_fields.py <API_KEY> <VIN>
@@ -259,15 +272,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.3.1-002-alpha"
-git tag -a 0.4.3.1-002-alpha -m "Release 0.4.3.1-002-alpha"
+git commit -m "Release 0.4.3.1-003-alpha"
+git tag -a 0.4.3.1-003-alpha -m "Release 0.4.3.1-003-alpha"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.3.1-002-alpha
+git push origin 0.4.3.1-003-alpha
 ```
 
 Do not assume the branch is `master` or `main`; check with:
