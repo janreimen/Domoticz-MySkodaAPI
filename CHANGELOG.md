@@ -14,7 +14,7 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 ## [0.4.3.1-003-alpha] - 2026-09-25
 
-MySkoda API v1.1.0 release: `charging.status` now optionally carries the plug state directly, rather than requiring it to be inferred from the derived charging state alone.
+MySkoda API v1.1.0 released - therefore an update: `charging.status` now optionally carries the plug state directly, rather than requiring it to be inferred from the derived charging state alone.
 
 ### Added
 
