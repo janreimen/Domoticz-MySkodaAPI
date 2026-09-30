@@ -7,14 +7,29 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 * **Alpha** releases are development releases and may contain architectural or device-model changes.
 * **Beta** releases are intended for real-world use but may still introduce changes before `1.0.0`.
 * **`1.0.0`** will mark the first production-stable release with a frozen device model and a strong commitment to upgrade compatibility.
+* **Tag format, as of `0.4.3.2`:** release tags are plain numeric (`MAJOR.MINOR.PATCH` or `MAJOR.MINOR.PATCH.BUILD`, optionally `v`-prefixed) - no `-alpha`/`-beta`/build-number suffixes. This is required by PyPluginStore's release-channel tag matcher (`^v?[0-9]+(?:\.[0-9]+){1,3}$`); a suffixed tag is simply invisible to it, so the plugin would stay Git-only there forever. Pre-release iteration now happens as unreleased commits on `development`, not as tagged alpha builds.
 
 ---
 
 # Release History
 
+## [0.4.3.2] - 2026-09-30
+
+First release published under a PyPluginStore-compatible tag - supersedes the three `0.4.3.1-00N-alpha` dated entries below (2026-09-19/22/25), none of which were ever visible to PyPluginStore's release channel because of their tag suffix. No functional changes beyond what those three entries already describe; this release exists to fix the tag format itself, not to ship new behavior.
+
+### Changed
+
+* Versioning scheme switched to plain numeric tags going forward (see the policy note above). `0.4.3.1-001/002/003-alpha` remain as historical tags/entries; nothing about their content changes.
+
+### Verified (PyPluginStore readiness)
+
+* `plugin.py` is at the repository root with a stable `key="MySkodaAPI"`, matching what a `registry.json` `domoticz_key` entry requires.
+* Source scanned against PyPluginStore's AST security-scanner trigger list (`os.system`, `subprocess` with `shell=True`, `eval`, `exec`, `pickle`, `shutil.rmtree`, `os.remove`) - none present anywhere in the codebase.
+* No third-party dependencies (`requirements.txt` is comment-only), so there's nothing for `uv`/`pip` dependency installation to fail on.
+
 ## [0.4.3.1-003-alpha] - 2026-09-25
 
-MySkoda API v1.1.0 released - therefore an update: `charging.status` now optionally carries the plug state directly, rather than requiring it to be inferred from the derived charging state alone.
+MySkoda API v1.1.0 release: `charging.status` now optionally carries the plug state directly, rather than requiring it to be inferred from the derived charging state alone.
 
 ### Added
 

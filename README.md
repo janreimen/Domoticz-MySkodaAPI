@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.3.1-003-alpha**
+**Version 0.4.3.2**
 
 A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 
@@ -272,15 +272,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.3.1-003-alpha"
-git tag -a 0.4.3.1-003-alpha -m "Release 0.4.3.1-003-alpha"
+git commit -m "Release 0.4.3.2"
+git tag -a 0.4.3.2 -m "Release 0.4.3.2"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.3.1-003-alpha
+git push origin 0.4.3.2
 ```
 
 Do not assume the branch is `master` or `main`; check with:
@@ -290,6 +290,41 @@ git branch --show-current
 ```
 
 The published source tree must not contain `archive/` or runtime state JSON files.
+
+## PyPluginStore
+
+This plugin is intended to be installable via [PyPluginStore](https://github.com/adrighem/PyPluginStore), the Domoticz plugin manager. Its release-channel requires plain numeric tags (`MAJOR.MINOR.PATCH[.BUILD]`, no `-alpha`/`-beta` suffix - see the tag-format policy note in `CHANGELOG.md`), which is why release tags from `0.4.3.2` onward look different from the `0.4.3.1-00N-alpha` line before it.
+
+Source-level requirements PyPluginStore's CI and AST security scanner check for are already satisfied: `plugin.py` at the repository root with a stable `key="MySkodaAPI"`; no third-party dependencies; and no use anywhere in the codebase of the patterns its scanner flags (`os.system`, `subprocess(shell=True)`, `eval`, `exec`, `pickle`, `shutil.rmtree`, `os.remove`).
+
+Listing this plugin requires a separate pull request adding an entry to `registry.json` in the PyPluginStore repository itself (not this one). A ready-to-submit entry, matching the schema PyPluginStore's `docs/registry_local.md` documents:
+
+```json
+{
+    "package_id": "Domoticz-MySkodaAPI",
+    "domoticz_key": "MySkodaAPI",
+    "description": "Škoda vehicle telemetry (battery, range, charging, doors, climate) into native Domoticz devices via the MySkoda Public API.",
+    "repository": {
+        "url": "https://github.com/janreimen/Domoticz-MySkodaAPI",
+        "branch": "master"
+    },
+    "platforms": ["linux", "windows"],
+    "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+            "provider": "github",
+            "channel": "stable",
+            "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+            "artifact": "source_zip",
+            "source_path": ".",
+            "mutable_paths": []
+        }
+    }
+}
+```
+
+Two fields worth double-checking before submitting: `branch` (set here to `master` - confirm that's the branch this plugin actually releases from), and `platforms` (set to both - the plugin has no Linux-specific dependencies, but this hasn't been explicitly verified on Windows; use `["linux"]` or an empty array instead if that matters to you).
 
 ## Security
 

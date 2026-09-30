@@ -1,4 +1,4 @@
-PLUGIN_VERSION = "0.4.3.1-003-alpha"
+PLUGIN_VERSION = "0.4.3.2"
 PLUGIN_KEY = "MySkodaAPI"
 PLUGIN_NAME = "MySkoda API Integration"
 PLUGIN_URL = "https://github.com/janreimen/Domoticz-MySkodaAPI"

@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3.1-003-alpha — Development Alpha**.
+The project is currently at **0.4.3.2 — Released**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,13 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3.1-003-alpha
+# Current State — 0.4.3.2
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.3.2 - PyPluginStore-compatible tag
+
+Tag-format fix, no functional changes. PyPluginStore's release channel only recognizes plain numeric tags (`^v?[0-9]+(?:\.[0-9]+){1,3}$`) - the `-001/002/003-alpha` suffixes used below made those releases invisible to it. All future release tags are plain numeric; pre-release iteration moves to unreleased commits on `development` instead. Verified clean against PyPluginStore's AST security scanner (no `os.system`, `subprocess(shell=True)`, `eval`, `exec`, `pickle`, `shutil.rmtree`, or `os.remove` anywhere in the codebase) and confirmed `plugin.py` sits at the repo root with a stable `key="MySkodaAPI"`.
 
 ## 0.4.3.1-003-alpha - v1.1.0 API: direct plug state
 
