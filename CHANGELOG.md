@@ -13,6 +13,61 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.4.002] - 2026-10-04
+
+Second remote-command release: two more writable commands, confirmed against the real OpenAPI spec and built on the same enabled/PIN/revert-on-failure pattern as Air Conditioning Control (0.4.4.0).
+
+### Added
+
+* **Unit 50 - Active Ventilation Control**: new writable Selector (On/Off). `POST {vehicle}/active-ventilation/start` and `.../stop` - confirmed against the spec that neither endpoint takes a request body or a security PIN.
+* **Unit 51 - Auxiliary Heating Control**: new writable Selector (On/Off). `POST {vehicle}/auxiliary-heating/start` requires a Security PIN (`spin`, schema `StartAuxiliaryHeatingConfiguration`); `.../stop` does not.
+* New hardware setting **Mode5 - "Auxiliary Heating PIN (S-PIN)"** (password-masked, optional, default empty). Read deliberately without `.strip()`, so a legitimately-entered PIN is never silently altered. Never written to any log line, even at Debug/Verbose level - covered by a dedicated regression test asserting a distinctive PIN value never appears in any debug call.
+* `active_ventilation_active` and `auxiliary_heating_active` derived booleans in `vehicle.py`, mapping the richer read-side enums (`ActiveVentilation.state`, `AuxiliaryHeating.state`) onto the On/Off selector range, following the same pattern as `air_conditioning_active` from 0.4.4.0.
+* Shared `_on_control_command()` / `_restore_control()` implementation in `plugin.py`, generalizing the command-dispatch flow (enabled check, API-ready check, an optional extra precondition, the actual call, rate-limit header bookkeeping, optimistic selector update or revert-on-failure) across all three `*_control` units. Per-feature specifics (log wording, the Auxiliary Heating PIN precondition) are supplied via small `start()`/`stop()` closures instead of duplicating the flow three times.
+* 20 new regression tests: request-shape and PIN-masking tests for both new API methods, derived-boolean mapping tests for both new enums, and full command-dispatch tests (success, disabled, and the PIN-precondition path) for both new units.
+
+### Fixed
+
+* A direction-unaware precondition check: the generalized `extra_check` callback was being invoked without knowing whether the command was a start or a stop, so the Auxiliary Heating PIN requirement was blocking the *stop* command too whenever no PIN was configured - even though the spec only requires the PIN to *start* auxiliary heating. Caught by a new test (`test_auxiliary_heating_stop_command_does_not_require_a_pin`) before this was shipped; fixed by passing the start/stop direction into the check, so only the start path can be blocked on a missing PIN.
+
+### Notes
+
+* Exercised against a real vehicle end-to-end: the command pipeline, level-to-start/stop mapping, and PIN-masking in the log all behaved correctly. The vehicle itself returned `429 vehicle-not-accepting-requests` after exhausting all 3 retries - a vehicle-side throttle the API documents as caused by either the vehicle pacing its own request rate or a low 12V battery, not a plugin bug. As always, not every vehicle supports every operation - check **Unit 41 - Supported Operations** before assuming a failure is this plugin's fault.
+
+## [0.4.4.001] - 2026-10-04
+
+Logging/diagnostics release, prompted by a real report of "nothing happens" when clicking Air Conditioning Control in Domoticz - which turned out to be the **Debug** hardware setting (Mode6) never actually being wired to Domoticz's own debug flag, so no Debug-level log line could ever appear regardless of that dropdown.
+
+### Fixed
+
+* `Domoticz.Debugging()` is now actually called from the Mode6 setting on startup - previously set but never applied.
+
+### Added
+
+* Unconditional `onCommand` entry logging: every command Domoticz sends is now logged at Log level the moment it's received, regardless of the Debug setting, so a "nothing happens" report can always be diagnosed from the log alone.
+* A top-level exception safety net in `onCommand`, so an unexpected error during command handling is logged instead of silently swallowed.
+* Startup logging stating which Domoticz unit is Air Conditioning Control and whether remote commands are currently enabled.
+* Error logging when a device update targets a missing/uncreated Domoticz device - previously a silent no-op.
+
+## [0.4.4.0] - 2026-10-03
+
+First remote-command release: the plugin can now optionally send a real vehicle command instead of only reading telemetry.
+
+### Added
+
+* **Unit 49 - Air Conditioning Control**: first writable Domoticz Selector (On/Off). `POST {vehicle}/air-conditioning/start` (body: `targetTemperature`, defaulting to 21°C) and `.../stop`.
+* New hardware setting **Mode4 - "Enable Remote Commands"** (Off/On, default Off) - all `*_control` units stay inert, reverting any click back to the last known state, until this is explicitly turned on.
+* `air_conditioning_active` derived boolean in `vehicle.py`, collapsing the 8-value `AirConditioning.state` enum (`OFF`, `COOLING`, `HEATING`, `HEATING_AUXILIARY`, `VENTILATION`, `COMPLETED`, `UNKNOWN`, `UNSUPPORTED`) onto the Selector's On/Off range.
+* Rate-limit header bookkeeping (`RateLimit-*`/`X-API-Key-Expires-At`) extended to command responses, not just the main telemetry poll.
+
+### Fixed
+
+* Reconciled against the real MySkoda OpenAPI spec after initial development: `air-conditioning/start` requires a request body (initially sent without one); confirmed the Security PIN (`spin`) field belongs only to `auxiliary-heating/start`'s schema, not to air conditioning.
+
+### Notes
+
+* Exercised against a real vehicle: the command pipeline worked end-to-end, but the vehicle returned `422 operation-not-supported` for air conditioning - a vehicle-capability limit, not a plugin defect, separately confirmed by **Unit 40 - API Data Errors** flagging `AIR_CONDITIONING_UNSUPPORTED` for that same vehicle.
+
 ## [0.4.3.2] - 2026-09-30
 
 First release published under a PyPluginStore-compatible tag - supersedes the three `0.4.3.1-00N-alpha` dated entries below (2026-09-19/22/25), none of which were ever visible to PyPluginStore's release channel because of their tag suffix. No functional changes beyond what those three entries already describe; this release exists to fix the tag format itself, not to ship new behavior.

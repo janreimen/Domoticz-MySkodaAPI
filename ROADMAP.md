@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.3.2 — Released**.
+The project is currently at **0.4.4.002 — Released**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,21 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.3.2
+# Current State — 0.4.4.002
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.4.002 - Active Ventilation + Auxiliary Heating Control
+
+Second remote-command release. Adds unit 50 (Active Ventilation Control - no body, no PIN) and unit 51 (Auxiliary Heating Control - PIN required to start, not to stop), plus the new Mode5 "Auxiliary Heating PIN (S-PIN)" hardware setting, never logged. Both gated by the same "Enable Remote Commands" setting as Air Conditioning Control. See `CHANGELOG.md` for the full breakdown, including a direction-unaware PIN-check bug caught by the test suite before release.
+
+## 0.4.4.001 - Logging and diagnostics
+
+Fixed the Debug hardware setting (Mode6) never actually being wired to Domoticz's own debug flag; added unconditional `onCommand` entry logging, an exception safety net, startup logging of command-unit/enabled state, and error logging for updates to a missing Domoticz device. Prompted by a real "nothing happens" report that turned out to be a wrong-device click, which the new logging made diagnosable. See `CHANGELOG.md`.
+
+## 0.4.4.0 - First remote command: Air Conditioning Control
+
+The first break from pure read-only telemetry. Adds unit 49 (Air Conditioning Control) and the "Enable Remote Commands" hardware setting (Mode4, off by default). Reconciled against the real OpenAPI spec after initial development (required request body, confirmed no PIN needed for this endpoint). Exercised against a real vehicle: the command pipeline worked correctly, but that vehicle doesn't support air conditioning remotely (`422 operation-not-supported`) - a vehicle-capability limit, not a plugin defect. See `CHANGELOG.md`.
 
 ## 0.4.3.2 - PyPluginStore-compatible tag
 
@@ -348,11 +360,9 @@ This will make future API changes easier to handle.
 
 ## Status
 
-**Planned**
+**Partially released** (climate commands - see below); vehicle lock/unlock and charging commands remain **Planned**.
 
-GitHub issue #4 defines the next major functional step as remote commands.
-
-This is the point where the plugin changes from:
+GitHub issue #4 defines the next major functional step as remote commands. This is the point where the plugin changes from:
 
 ```text
 MyŠkoda API
@@ -368,22 +378,25 @@ MyŠkoda API
 Domoticz
 ```
 
+The climate portion of this milestone arrived earlier than originally numbered, as 0.4.4.0/0.4.4.001/0.4.4.002 rather than waiting for a 0.6.0 bump, once it became clear it needed no architecture change beyond what 0.4.x already had. The Command Architecture and Safety requirements below describe what was actually built, not just the target.
+
 ## Initial command set
 
 ### Vehicle
 
-* Lock.
-* Unlock.
+* Lock. *(Planned)*
+* Unlock. *(Planned)*
 
 ### Climate
 
-* Start climate.
-* Stop climate.
+* Start/stop Air Conditioning. **Released in 0.4.4.0** (unit 49).
+* Start/stop Active Ventilation. **Released in 0.4.4.002** (unit 50).
+* Start/stop Auxiliary Heating. **Released in 0.4.4.002** (unit 51; starting requires the vehicle's Security PIN, configured as a new hardware setting).
 
 ### Charging
 
-* Start charging.
-* Stop charging.
+* Start charging. *(Planned - EV/PHEV only)*
+* Stop charging. *(Planned - EV/PHEV only)*
 
 Additional commands should only be introduced when their API behaviour is well understood.
 
@@ -445,6 +458,12 @@ Domoticz update
 ### Principle
 
 > **A successful HTTP request is not necessarily a successful vehicle command.**
+
+### Status against the three released climate commands (0.4.4.0/0.4.4.002)
+
+Addressed: API failures are handled explicitly and clearly reported (the RFC problem type/detail is surfaced in the error), rate limits are handled (bounded retry honoring `Retry-After`), and a failed command never leaves Domoticz showing a successful state - it reverts to the last cached value instead.
+
+Still open, for a future release: commands are not pre-validated against **Unit 41 - Supported Operations** before sending (an unsupported command is only caught after the API rejects it with `422`), and there is no explicit post-command state refresh/verification step - the optimistic selector update is corrected by the *next regular poll*, not an immediate re-check. Both remain reasonable 0.6.x-or-later hardening targets rather than blockers for the current feature set.
 
 ---
 
@@ -1167,7 +1186,9 @@ Long-term 1.x development
 
 **Next milestone: `0.5.x`**
 
-The immediate priority remains **stability of the existing device/provisioning model**, especially safe device characteristic migration and upgrade handling (see the 0.4.2 — Stabilisation section above; confirm its acceptance criteria are fully met before treating that work as done).
+The three climate commands (0.4.4.0/0.4.4.002) shipped ahead of this sequence, since they turned out to need no architecture change beyond what 0.4.x already had - see the "Status against the three released climate commands" note under 0.6.x above for what that pulled forward and what it didn't.
 
-Only after that foundation is reliable should development proceed toward the `0.5.x` complete read-only milestone.
+The immediate priority otherwise remains **stability of the existing device/provisioning model**, especially safe device characteristic migration and upgrade handling (see the 0.4.2 — Stabilisation section above; confirm its acceptance criteria are fully met before treating that work as done).
+
+Only after that foundation is reliable should development proceed toward the `0.5.x` complete read-only milestone, with the remaining 0.6.x commands (vehicle lock/unlock, charging) and the open items above (pre-validation against Supported Operations, post-command verification) following after.
 

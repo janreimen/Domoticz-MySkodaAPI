@@ -1,12 +1,12 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.3.2**
+**Version 0.4.4.002**
 
-A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
+A Domoticz Python plugin for the official Škoda MySkoda Public API: vehicle telemetry is always read-only, plus three optional, off-by-default remote commands.
 
 ## Highlights
 
-- Read-only vehicle telemetry; no remote vehicle commands are sent.
+- Vehicle telemetry is always read-only; three remote commands (Air Conditioning, Active Ventilation, Auxiliary Heating Control) are opt-in and off by default - see "Remote vehicle commands" below.
 - Authentication with the API's `X-API-Key` header.
 - Current API response format with `vehicle` data and optional partial-response `errors`.
 - Retry handling for HTTP 429 and transient 5xx responses.
@@ -20,7 +20,7 @@ A read-only Domoticz Python plugin for the official Škoda MySkoda Public API.
 - Charging, battery, climate, security, fuel and telemetry diagnostics.
 - Charging power, remaining charging time and charge type (AC/DC), sourced from the same charging data already polled - no extra API call.
 - Python standard library only; no third-party runtime dependencies.
-- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1-001-alpha, unit 48 in 0.4.3.1-003-alpha.
+- Existing Domoticz units 1–44 are preserved for upgrade compatibility; units 45–47 are new in 0.4.3.1-001-alpha, unit 48 in 0.4.3.1-003-alpha, unit 49 (Air Conditioning Control) in 0.4.4.0, and units 50–51 (Active Ventilation / Auxiliary Heating Control) in 0.4.4.002.
 
 ## Requirements
 
@@ -85,9 +85,11 @@ The plugin configuration fields are:
 | API Key | MySkoda Public API key; stored by Domoticz as a password field |
 | VIN | Vehicle VIN |
 | Poll Interval (minutes) | Polling interval, default 30 minutes; accepted range 15–60 minutes |
+| Enable Remote Commands | Off (default) or On. Gates all three `*_control` units (see "Remote vehicle commands" below); leave Off for a purely read-only installation |
+| Auxiliary Heating PIN (S-PIN) | Optional; stored by Domoticz as a password field. Only required to *start* Auxiliary Heating Control (unit 51) - not needed for Air Conditioning, Active Ventilation, or to stop Auxiliary Heating |
 | Debug | Off, Basic or Verbose |
 
-The plugin is intentionally **read-only**. Selector devices are telemetry displays, not controls. Commands from Domoticz are rejected and the selector is restored to the API-reported state.
+Almost every selector device is a **telemetry display, not a control**: clicking one in the Domoticz UI does nothing to the vehicle, and the selector is restored to the last API-reported state. The three exceptions are **Air Conditioning Control** (unit 49), **Active Ventilation Control** (unit 50) and **Auxiliary Heating Control** (unit 51) - see "Remote vehicle commands" below.
 
 ## Device units
 
@@ -142,6 +144,10 @@ The plugin deliberately keeps the established unit numbers:
 | 45 | Charging Power |
 | 46 | Remaining Charging Time |
 | 47 | Charge Type |
+| 48 | Plug Lock State |
+| 49 | Air Conditioning Control — writable; see "Remote vehicle commands" |
+| 50 | Active Ventilation Control — writable; see "Remote vehicle commands" |
+| 51 | Auxiliary Heating Control — writable; see "Remote vehicle commands" |
 
 ### Distance tracking and Domoticz statistics
 
@@ -193,6 +199,22 @@ Added following the MySkoda API's v1.1.0 release, which introduced two new optio
 The v1.1.0 release notes also clarify two things about the *derived* charging state (`charging.status.state` - `CONNECT_CABLE`, `CHARGING`, `READY_FOR_CHARGING`, etc.): an omitted value never means the plug was reported as disconnected, and new values may be added over time. Both were already true of this plugin's fallback logic (it only acts on states it explicitly recognizes, and never infers "disconnected" from an absent state) - no behavior change was needed there, only confirmation.
 
 Both new fields are optional, so vehicles/accounts on an older API revision will simply have `charging_connected` fall back to the existing heuristic and `plug_lock_state` stay `Unknown`.
+
+### Units 49–51 — Remote vehicle commands (0.4.4.0 / 0.4.4.002)
+
+- **Unit 49 — Air Conditioning Control** (0.4.4.0): `On` sends `POST {vehicle}/air-conditioning/start` with a target temperature of 21°C; `Off` sends `.../stop`.
+- **Unit 50 — Active Ventilation Control** (0.4.4.002): `On`/`Off` send `POST {vehicle}/active-ventilation/start` / `.../stop`. Neither endpoint takes a request body or a PIN.
+- **Unit 51 — Auxiliary Heating Control** (0.4.4.002): `On` sends `POST {vehicle}/auxiliary-heating/start` with the configured Security PIN (`spin`); `Off` sends `.../stop`, which needs no PIN.
+
+All three are **off by default** and gated by the **Enable Remote Commands** hardware setting (Mode4). With it Off, clicking any of these selectors does nothing - the API is never called and the selector reverts to its last known state, exactly like the read-only selectors.
+
+With it On:
+
+- Starting Auxiliary Heating additionally requires the **Auxiliary Heating PIN (S-PIN)** hardware setting (Mode5) to be filled in; if it's empty, the start is refused with a clear log message and the selector reverts. The PIN is never written to any log line, at any Debug level. Stopping Auxiliary Heating does not need the PIN.
+- A successful command optimistically updates the selector immediately; the next poll corrects it if the vehicle doesn't end up where expected. A failed command (non-2xx response) reverts the selector back to the last cached API state instead of leaving it stuck where you clicked it.
+- Command responses carry the same `RateLimit-*`/`X-API-Key-Expires-At` headers as the main poll, and are booked against the same rate-limit diagnostics (units 21–22, 42–44).
+
+**Not every vehicle supports every operation.** Check **Unit 41 — Supported Operations** (and Unit 40 — API Data Errors, which flags e.g. `AIR_CONDITIONING_UNSUPPORTED` per-vehicle) before assuming a failed command is a plugin bug - a `422 operation-not-supported` response means the vehicle itself lacks that capability, not that something is broken here. A `429` response (including the vehicle-specific `vehicle-not-accepting-requests` problem type) means retry later; the plugin already retries automatically up to 3 times, honoring the API's own `Retry-After` header.
 
 ## API behavior
 
@@ -272,15 +294,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.3.2"
-git tag -a 0.4.3.2 -m "Release 0.4.3.2"
+git commit -m "Release 0.4.4.002"
+git tag -a 0.4.4.002 -m "Release 0.4.4.002"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.3.2
+git push origin 0.4.4.002
 ```
 
 Do not assume the branch is `master` or `main`; check with:

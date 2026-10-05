@@ -80,9 +80,12 @@ class VehicleState:
     parking_latitude: Optional[float] = None
     parking_longitude: Optional[float] = None
     air_conditioning: str = "Unknown"
+    air_conditioning_active: Optional[bool] = None
     target_temperature: Optional[float] = None
     auxiliary_heating: str = "Unknown"
+    auxiliary_heating_active: Optional[bool] = None
     active_ventilation: str = "Unknown"
+    active_ventilation_active: Optional[bool] = None
     fuel_type: str = "Unknown"
     charging_state: str = "Unknown"
     battery_soc: Optional[float] = None
@@ -157,10 +160,54 @@ class VehicleState:
         longitude = safe_float(first(gps, "longitude", "lon", "lng", default=first(parking, "longitude", "lon", "lng", default=None)))
 
         ac_state = state_text(first(ac, "state", "status", "active", default="Unknown"))
+
+        # CONFIRMED against the real OpenAPI spec: AirConditioning.state is
+        # an 8-value enum (OFF, COOLING, HEATING, HEATING_AUXILIARY,
+        # VENTILATION, COMPLETED, UNKNOWN, UNSUPPORTED), not a simple on/off
+        # - ac_state above (and unit 16's existing display) keeps showing
+        # that raw value unchanged. air_conditioning_active collapses it to
+        # a plain tri-state on/off/unknown signal, used only for the
+        # selector_on_off-mode remote-control device (unit 49 in
+        # devices.py), whose UI only has Unknown/Off/On to show.
+        raw_ac_state = ac_state.strip().upper() if isinstance(ac_state, str) else ""
+        if raw_ac_state in ("COOLING", "HEATING", "HEATING_AUXILIARY", "VENTILATION"):
+            ac_active = True
+        elif raw_ac_state in ("OFF", "COMPLETED"):
+            ac_active = False
+        else:
+            # UNKNOWN, UNSUPPORTED, "Unknown" (no data at all), or any value
+            # not yet in the documented enum - left as Unknown rather than
+            # guessed.
+            ac_active = None
+
         target = first(ac, "targetTemperature", "targetTemperatureCelsius", "temperature", default=first(heat, "targetTemperature", "targetTemperatureCelsius", "temperature", default=None))
         target_temp = number_from(target, "value", "celsius", "temperature")
         heat_state = state_text(first(heat, "state", "status", "active", default="Unknown"))
         vent_state = state_text(first(vent, "state", "status", "active", default="Unknown"))
+
+        # Same CONFIRMED-against-the-real-spec reasoning as air_conditioning_active
+        # above, applied to the other two climate enums:
+        #   AuxiliaryHeating.state: OFF, PREHEATING, HEATING_AUXILIARY,
+        #     VENTILATION, UNKNOWN, UNSUPPORTED
+        #   ActiveVentilation.state: OFF, PREHEATING, VENTILATION, UNKNOWN,
+        #     UNSUPPORTED
+        # Both collapse to the same tri-state on/off/unknown signal, used
+        # only by their respective *_control selectors in devices.py.
+        raw_heat_state = heat_state.strip().upper() if isinstance(heat_state, str) else ""
+        if raw_heat_state in ("PREHEATING", "HEATING_AUXILIARY", "VENTILATION"):
+            heat_active = True
+        elif raw_heat_state == "OFF":
+            heat_active = False
+        else:
+            heat_active = None
+
+        raw_vent_state = vent_state.strip().upper() if isinstance(vent_state, str) else ""
+        if raw_vent_state in ("PREHEATING", "VENTILATION"):
+            vent_active = True
+        elif raw_vent_state == "OFF":
+            vent_active = False
+        else:
+            vent_active = None
         captured = safe_str(first(status, "carCapturedTimestamp", default=first(root, "carCapturedTimestamp", default=first(odo, "carCapturedTimestamp", default=""))))
         fuel_captured = safe_str(first(primary, "carCapturedTimestamp", default=first(fuel, "carCapturedTimestamp", default="")))
         odo_captured = safe_str(first(odo, "carCapturedTimestamp", default=""))
@@ -279,13 +326,12 @@ class VehicleState:
         if remaining_charging_time is None and raw_charge_state and raw_charge_state != "CHARGING":
             remaining_charging_time = 0.0
 
-        # NOTE (as of 0.4.3.2): charge_type is still unconfirmed.
-        # None of the three real dumps captured so far (CONNECT_CABLE,
-        # CHARGING, READY_FOR_CHARGING) contain a "type" field anywhere under
-        # `charging` (AC vs. DC) - it may simply not be exposed by this
-        # endpoint. The candidates below are an unchanged best guess; verify
-        # with verify_charging_fields.py before relying on this device, and
-        # consider whether it should exist at all if no key ever matches.
+        # CONFIRMED against the real OpenAPI spec: ChargingStatus.chargeType
+        # is an AC/DC/OFF enum at exactly the status.chargeType path already
+        # checked first below. None of the three real dumps captured so far
+        # (CONNECT_CABLE, CHARGING, READY_FOR_CHARGING) happened to contain
+        # it, so it may still be absent for some vehicles/states, but the
+        # lookup path itself is correct - no change needed here.
         charge_type = state_text(first(
             charging,
             "status.chargeType", "status.chargingType",
@@ -301,8 +347,9 @@ class VehicleState:
             total_range=total_range, odometer=odometer, vehicle_state=vehicle_state,
             parking_state=parking_state, parking_address=safe_str(address),
             parking_latitude=latitude, parking_longitude=longitude,
-            air_conditioning=ac_state, target_temperature=target_temp,
-            auxiliary_heating=heat_state, active_ventilation=vent_state,
+            air_conditioning=ac_state, air_conditioning_active=ac_active, target_temperature=target_temp,
+            auxiliary_heating=heat_state, auxiliary_heating_active=heat_active,
+            active_ventilation=vent_state, active_ventilation_active=vent_active,
             fuel_type=fuel_type, charging_state=charging_state, battery_soc=battery_soc,
             electric_range=electric_range, charging_connected=charging_connected,
             charge_target=charge_target, charge_mode=charge_mode,

@@ -5,6 +5,9 @@ import urllib.parse
 import urllib.request
 
 from constants import (
+    ACTIVE_VENTILATION_START_ENDPOINT, ACTIVE_VENTILATION_STOP_ENDPOINT,
+    AIR_CONDITIONING_START_ENDPOINT, AIR_CONDITIONING_STOP_ENDPOINT,
+    AUXILIARY_HEATING_START_ENDPOINT, AUXILIARY_HEATING_STOP_ENDPOINT,
     API_BASE, API_INCLUDE, API_TIMEOUT, INITIAL_BACKOFF, MAX_BACKOFF,
     MAX_RETRIES, RETRYABLE_STATUS, USER_AGENT, VEHICLE_ENDPOINT,
 )
@@ -88,6 +91,12 @@ class MySkodaAPI:
         query = urllib.parse.urlencode({"include": ",".join(API_INCLUDE)})
         return API_BASE + VEHICLE_ENDPOINT.format(vin=urllib.parse.quote(self.vin, safe="")) + "?" + query
 
+    def _build_url(self, path_template, query=None):
+        url = API_BASE + path_template.format(vin=urllib.parse.quote(self.vin, safe=""))
+        if query:
+            url += "?" + urllib.parse.urlencode(query)
+        return url
+
     @staticmethod
     def _parse_retry_after(value):
         if value is None:
@@ -123,6 +132,72 @@ class MySkodaAPI:
         return "", "", ""
 
     def fetch_vehicle(self):
+        return self._request("GET", self._url())
+
+    def start_air_conditioning(self, target_temperature_celsius=None):
+        """Start remote air conditioning (StartAirConditioningConfiguration).
+
+        The real OpenAPI spec marks this endpoint's requestBody as
+        required: true, so a JSON body is always sent - an empty {} when no
+        target temperature is given, never an omitted body.
+        """
+        url = self._build_url(AIR_CONDITIONING_START_ENDPOINT)
+        body = {}
+        if target_temperature_celsius is not None:
+            # {"value": ..., "unit": "CELSIUS"} is the TargetTemperature
+            # schema - the same shape the API uses for temperature on the
+            # read side.
+            body["targetTemperature"] = {"value": float(target_temperature_celsius), "unit": "CELSIUS"}
+        self._log_debug("MySkoda API command: POST {} body={}".format(url, body))
+        return self._request("POST", url, json_body=body)
+
+    def stop_air_conditioning(self):
+        """Stop remote air conditioning. Per the spec, this endpoint takes
+        no request body.
+        """
+        url = self._build_url(AIR_CONDITIONING_STOP_ENDPOINT)
+        self._log_debug("MySkoda API command: POST {} (no body)".format(url))
+        return self._request("POST", url)
+
+    def start_active_ventilation(self):
+        """Start active ventilation. Per the spec, this endpoint takes no
+        request body at all (unlike air-conditioning/start).
+        """
+        url = self._build_url(ACTIVE_VENTILATION_START_ENDPOINT)
+        self._log_debug("MySkoda API command: POST {} (no body)".format(url))
+        return self._request("POST", url)
+
+    def stop_active_ventilation(self):
+        """Stop active ventilation. Per the spec, this endpoint takes no
+        request body.
+        """
+        url = self._build_url(ACTIVE_VENTILATION_STOP_ENDPOINT)
+        self._log_debug("MySkoda API command: POST {} (no body)".format(url))
+        return self._request("POST", url)
+
+    def start_auxiliary_heating(self, spin):
+        """Start auxiliary heating (StartAuxiliaryHeatingConfiguration).
+
+        The real OpenAPI spec marks "spin" (the vehicle's Security PIN) as
+        the only required field on this endpoint's request body -
+        targetTemperature, durationInSeconds and startMode are all optional
+        and are left at the vehicle's own defaults here. spin is never
+        logged, even at Debug level.
+        """
+        url = self._build_url(AUXILIARY_HEATING_START_ENDPOINT)
+        body = {"spin": spin}
+        self._log_debug("MySkoda API command: POST {} body={{'spin': '***'}}".format(url))
+        return self._request("POST", url, json_body=body)
+
+    def stop_auxiliary_heating(self):
+        """Stop auxiliary heating. Per the spec, this endpoint takes no
+        request body and no PIN is needed to stop.
+        """
+        url = self._build_url(AUXILIARY_HEATING_STOP_ENDPOINT)
+        self._log_debug("MySkoda API command: POST {} (no body)".format(url))
+        return self._request("POST", url)
+
+    def _request(self, method, url, json_body=None):
         # The MySkoda Public API authenticates with X-API-Key.
         # Do not replace this with Authorization: Bearer.
         headers = {
@@ -130,30 +205,36 @@ class MySkodaAPI:
             "X-API-Key": self.api_key,
             "User-Agent": USER_AGENT,
         }
-        url = self._url()
+        data = None
+        if json_body is not None:
+            data = json.dumps(json_body).encode("utf-8")
+            headers["Content-Type"] = "application/json"
         backoff = INITIAL_BACKOFF
         started = time.time()
 
         for attempt in range(1, MAX_RETRIES + 2):
             try:
-                request = urllib.request.Request(url, headers=headers, method="GET")
+                request = urllib.request.Request(url, data=data, headers=headers, method=method)
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     response_headers = self._headers_dict(response.headers)
-                    body = response.read().decode("utf-8", errors="replace")
+                    raw = response.read()
+                    body_text = raw.decode("utf-8", errors="replace") if raw else ""
                     status = getattr(response, "status", 200)
-                    try:
-                        data = json.loads(body)
-                    except ValueError as exc:
-                        result = APIResult(
-                            False, status, None,
-                            "Invalid JSON response: {}".format(exc),
-                            response_headers, attempt, None, time.time() - started,
-                        )
-                        self.last_result = result
-                        return result
+                    parsed = None
+                    if body_text:
+                        try:
+                            parsed = json.loads(body_text)
+                        except ValueError as exc:
+                            result = APIResult(
+                                False, status, None,
+                                "Invalid JSON response: {}".format(exc),
+                                response_headers, attempt, None, time.time() - started,
+                            )
+                            self.last_result = result
+                            return result
                     ok = 200 <= status < 300
                     result = APIResult(
-                        ok, status, data,
+                        ok, status, parsed,
                         "" if ok else "HTTP {}".format(status),
                         response_headers, attempt, None, time.time() - started,
                     )

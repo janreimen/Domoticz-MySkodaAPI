@@ -60,6 +60,18 @@ class DeviceManager:
         # selector_security_lock mode already defined for doors_locked below -
         # same Unknown|Locked|Unlocked shape, same meaning.
         ("plug_lock_state", "Plug Lock State", "Selector", "selector_security_lock"),
+        # New in 0.4.4.0: the first WRITABLE unit (see WRITABLE_UNITS in
+        # constants.py and onCommand in plugin.py). Reuses selector_on_off,
+        # same shape as the existing read-only air_conditioning (unit 16),
+        # but this one is dispatched to a real vehicle command instead of
+        # being reverted on every local change.
+        ("air_conditioning_control", "Air Conditioning Control", "Selector", "selector_on_off"),
+        # New in 0.4.4.002: two more WRITABLE units, same shape/reasoning as
+        # air_conditioning_control above - each pairs with an existing
+        # read-only telemetry unit (active_ventilation=19, auxiliary_heating=18)
+        # which is left completely untouched.
+        ("active_ventilation_control", "Active Ventilation Control", "Selector", "selector_on_off"),
+        ("auxiliary_heating_control", "Auxiliary Heating Control", "Selector", "selector_on_off"),
     ]
 
     COUNTER_OPTIONS = {"ValueQuantity": "Distance", "ValueUnits": "km"}
@@ -193,6 +205,17 @@ class DeviceManager:
     def _update(self, key, nvalue, svalue, **kwargs):
         device = self.domoticz_devices.get(UNITS[key])
         if device is None:
+            # Previously a silent no-op - if a device went missing (failed
+            # creation at startup, deleted in the Domoticz UI, a stale
+            # Devices snapshot, ...) every update to it disappeared with no
+            # trace at all, which is exactly the kind of thing that makes a
+            # button click look like "nothing happens". Surface it instead.
+            self._log_error(
+                "Cannot update '{}' (Domoticz unit {}): no such device found - "
+                "it may have failed to be created, or been deleted/changed in "
+                "the Domoticz UI. Restarting the plugin re-creates missing "
+                "devices.".format(key, UNITS[key])
+            )
             return
         try:
             device.Update(nvalue, safe_str(svalue), **kwargs)
@@ -265,6 +288,18 @@ class DeviceManager:
     def _connected_text(connected):
         return "CONNECTED" if connected is True else ("DISCONNECTED" if connected is False else "UNKNOWN")
 
+    @staticmethod
+    def _active_text(active):
+        # Shared by all three *_control selectors (air_conditioning_control,
+        # active_ventilation_control, auxiliary_heating_control) - each is a
+        # selector_on_off mode with only Unknown|Off|On to show, but the
+        # real telemetry enums behind them have more values than that (see
+        # vehicle.py's *_active derivations), so raw state strings can map
+        # to selector levels outside this mode's range. This collapses the
+        # derived tri-state bool into the On/Off/Unknown vocabulary the mode
+        # actually supports.
+        return "ON" if active is True else ("OFF" if active is False else "UNKNOWN")
+
     def restore_selector(self, unit, state):
         by_unit = {
             UNITS["doors_locked"]: ("doors_locked", self._locked_text(state.doors_locked)),
@@ -284,6 +319,15 @@ class DeviceManager:
             UNITS["charging_connected"]: ("charging_connected", self._connected_text(state.charging_connected)),
             UNITS["charge_mode"]: ("charge_mode", self._normalized(state.charge_mode)),
             UNITS["plug_lock_state"]: ("plug_lock_state", self._locked_text(state.plug_lock_state)),
+            # The three *_control units below are normally dispatched as
+            # real commands (see plugin.py onCommand) rather than reaching
+            # here - these entries are the fallback for when commands are
+            # disabled or a command call fails, so the switch snaps back to
+            # the real reported state instead of being left stuck on
+            # whatever the user clicked.
+            UNITS["air_conditioning_control"]: ("air_conditioning_control", self._active_text(state.air_conditioning_active)),
+            UNITS["active_ventilation_control"]: ("active_ventilation_control", self._active_text(state.active_ventilation_active)),
+            UNITS["auxiliary_heating_control"]: ("auxiliary_heating_control", self._active_text(state.auxiliary_heating_active)),
         }
         item = by_unit.get(unit)
         if item:
@@ -396,10 +440,16 @@ class DeviceManager:
         self.update_text("parking_gps", gps)
 
         self._update_selector("air_conditioning", self._normalized(state.air_conditioning))
+        # Keep the writable controls in sync with reality on every poll,
+        # same as any other selector - onCommand (plugin.py) is what makes
+        # these different, not this update path.
+        self._update_selector("air_conditioning_control", self._active_text(state.air_conditioning_active))
         if state.target_temperature is not None:
             self._update_custom_c("target_temperature", state.target_temperature)
         self._update_selector("auxiliary_heating", self._normalized(state.auxiliary_heating))
+        self._update_selector("auxiliary_heating_control", self._active_text(state.auxiliary_heating_active))
         self._update_selector("active_ventilation", self._normalized(state.active_ventilation))
+        self._update_selector("active_ventilation_control", self._active_text(state.active_ventilation_active))
 
         self._update_custom_numeric("vehicle_captured", vehicle_captured_elapsed, self.CUSTOM_SECONDS_OPTIONS)
         self._update_custom_numeric("api_key_expiry", api_key_expiry_days, self.CUSTOM_DAYS_OPTIONS, decimals=2)
