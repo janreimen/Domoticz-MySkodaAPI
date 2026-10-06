@@ -13,6 +13,18 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.4.1] - 2026-10-06
+
+Documentation-only build - no functional code changes since `0.4.4.002`; only the version string moved. All 65 tests unchanged.
+
+### Added
+
+* `README.md`: new **"Known command support by vehicle"** table under "Remote vehicle commands", recording two real, conflicting reports - a Kodiaq II PHEV where Air Conditioning Control works but Active Ventilation and Auxiliary Heating both `422 operation-not-supported` ([issue #9](https://github.com/janreimen/Domoticz-MySkodaAPI/issues/9#issuecomment-6011087562), reported by [@SanderNijdam](https://github.com/SanderNijdam)), versus this project's own Octavia 4th gen where it's the exact opposite (Air Conditioning and Active Ventilation both unsupported, Auxiliary Heating works). Documents that command support is decided per-VIN by Škoda's backend - most likely tied to which physical climate options the vehicle was factory-ordered with - and is not predictable from model, generation, or powertrain alone.
+
+### Notes
+
+* Reinforces the existing guidance to check **Unit 40 - API Data Errors** before assuming a failed command is a plugin bug: a field already flagged `..._UNSUPPORTED` there will always `422` on the matching command, while `..._UNAVAILABLE` (or no flag at all) may still succeed - exactly what played out on the Octavia 4th gen test behind this entry.
+
 ## [0.4.4.002] - 2026-10-04
 
 Second remote-command release: two more writable commands, confirmed against the real OpenAPI spec and built on the same enabled/PIN/revert-on-failure pattern as Air Conditioning Control (0.4.4.0).

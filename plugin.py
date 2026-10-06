@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.4.002" externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.4.1" externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
   <description>
     <h2>MySkoda API Integration</h2><br/>
     Integration with the official Škoda MySkoda Public API: telemetry is always read-only; remote vehicle commands (Air Conditioning, Active Ventilation and Auxiliary Heating Control) are opt-in and off by default. Not every vehicle supports every command - check the "Supported Operations" device for this vehicle before relying on one.<br/>

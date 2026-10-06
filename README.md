@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.4.002**
+**Version 0.4.4.1**
 
 A Domoticz Python plugin for the official Škoda MySkoda Public API: vehicle telemetry is always read-only, plus three optional, off-by-default remote commands.
 
@@ -216,6 +216,19 @@ With it On:
 
 **Not every vehicle supports every operation.** Check **Unit 41 — Supported Operations** (and Unit 40 — API Data Errors, which flags e.g. `AIR_CONDITIONING_UNSUPPORTED` per-vehicle) before assuming a failed command is a plugin bug - a `422 operation-not-supported` response means the vehicle itself lacks that capability, not that something is broken here. A `429` response (including the vehicle-specific `vehicle-not-accepting-requests` problem type) means retry later; the plugin already retries automatically up to 3 times, honoring the API's own `Retry-After` header.
 
+### Known command support by vehicle (0.4.4.1)
+
+Which of the three commands actually work is decided entirely by Škoda's backend per VIN - most likely tied to which physical options the vehicle was ordered with (a remote-start-capable AC compressor and an electric/fuel-fired auxiliary heater are typically separate factory options on VW Group vehicles, not bundled together) and/or the car's MySkoda Connect service entitlements. It is **not** determined by model, generation, or powertrain alone - the two real reports below show the *opposite* pattern on two different cars:
+
+| Vehicle | Air Conditioning | Active Ventilation | Auxiliary Heating |
+|---|---|---|---|
+| Kodiaq II PHEV | ✅ Works | ❌ `422 operation-not-supported` | ❌ `422 operation-not-supported` |
+| Octavia 4th gen | ❌ `422 operation-not-supported` | ❌ `422 operation-not-supported` | ✅ Works |
+
+(Kodiaq PHEV reported in [issue #9](https://github.com/janreimen/Domoticz-MySkodaAPI/issues/9#issuecomment-6011087562) by [@SanderNijdam](https://github.com/SanderNijdam); Octavia 4th gen is this project's own tested vehicle.)
+
+A `422` here is never a plugin bug - it's the vehicle itself declining the command. Before assuming otherwise, check **Unit 40 — API Data Errors** for that vehicle: a command whose telemetry field is already flagged `..._UNSUPPORTED` there will always `422`, while one flagged only `..._UNAVAILABLE` (or not flagged at all) may still work. If you can confirm support (or lack of it) for a vehicle not listed above, please open an issue or PR so this table can grow.
+
 ## API behavior
 
 The plugin retrieves vehicle data using:
@@ -294,15 +307,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.4.002"
-git tag -a 0.4.4.002 -m "Release 0.4.4.002"
+git commit -m "Release 0.4.4.1"
+git tag -a 0.4.4.1 -m "Release 0.4.4.1"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.4.002
+git push origin 0.4.4.1
 ```
 
 Do not assume the branch is `master` or `main`; check with:

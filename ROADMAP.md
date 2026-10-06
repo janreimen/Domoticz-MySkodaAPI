@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.4.002 — Released**.
+The project is currently at **0.4.4.1 — Released**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,13 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.4.002
+# Current State — 0.4.4.1
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.4.1 - Known command support by vehicle (docs only)
+
+Documentation-only build. Adds a real-world "known command support by vehicle" table to `README.md`: a Kodiaq II PHEV supports Air Conditioning but not Active Ventilation or Auxiliary Heating (GitHub issue #9), while this project's own Octavia 4th gen shows the opposite - confirming command support is decided per-vehicle by Škoda, not by model/generation/powertrain, and that Unit 40 (API Data Errors) reliably predicts it in advance. See `CHANGELOG.md`.
 
 ## 0.4.4.002 - Active Ventilation + Auxiliary Heating Control
 
