@@ -13,6 +13,66 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.4.2] - draft, not yet tagged/released
+
+Two confirmed bug fixes, both traced to real end-user reports on a Skoda
+Elroq (a pure BEV) via the Domoticz forum, and verified against a real API
+response dump from that vehicle plus Domoticz's own source
+(`hardwaretypes.h`). 69 tests (65 existing + 4 new), all passing.
+
+### Fixed
+
+* **Devices silently failed to create on a brand-new install - the likely
+  cause of a reported "missing Battery SoC".** `DeviceManager._desired_definition()`
+  had no explicit branch for the `"percentage"` or `"text"` device modes, so
+  both fell through to `return {"TypeName": mode}` - passing the lowercase
+  internal mode string (`"percentage"`, `"text"`) as Domoticz's `TypeName`.
+  Domoticz's real `TypeName` vocabulary is capitalized (`"Percentage"`,
+  `"Text"`), confirmed against Domoticz's own `hardwaretypes.h`
+  (`pTypeGeneral=0xF3=243`, `sTypePercentage=0x06=6`, `sTypeTextStatus=0x13=19`).
+  This bug has existed since the `0.4.2.a` `Devices.py` refactor but only
+  ever bit a brand-new device's `Create()` call - an *existing* device only
+  goes through the migrate/sync-options path (`_needs_migration()` /
+  `_synchronize_options()`), which never calls `Create()` again. That's why
+  it never surfaced on any continuously-upgraded test install, only on a
+  genuinely fresh one. Affects every `"percentage"`-mode device (Fuel
+  Level, **Battery SoC**, Charge Target) and every `"text"`-mode device (14
+  of them, including Parking GPS and Charge Type) on first install. Fixed
+  by giving both modes their own explicit `Type`/`Subtype`/`Switchtype`
+  branch, matching the style every other mode in this function already uses.
+* **`API Key Status` (unit 44) was never actually a Domoticz Alert device.**
+  While fixing the bug above, `ALERT_SUBTYPE = 19` turned out to be wrong
+  too - 19 is Domoticz's Text Status subtype (`sTypeTextStatus=0x13`), not
+  Alert (`sTypeAlert=0x16=22`). This has also been wrong since `0.4.2.a`.
+  Existing installs self-heal automatically: `_needs_migration()` compares
+  `SubType` and will now see `19 != 22` and call `_migrate_in_place()` on
+  the next plugin restart - no manual Domoticz UI changes needed.
+* **Total Range stayed blank forever on a pure-BEV vehicle.** Confirmed via
+  the real Elroq dump: a vehicle with no combustion engine at all has no
+  `fuelStatus` object in the API response whatsoever, so `total_range`
+  (which only ever looked under `fuelStatus`/root for `totalRangeInKm`)
+  never found anything, even though `electric_range` resolved correctly
+  (379 km, from `charging.status.battery.remainingCruisingRangeInMeters`).
+  `vehicle.py`'s `from_api()` now falls back to `electric_range` for
+  `total_range` only when there is no fuel-side contribution at all
+  (`fuel_range` is also `None`), so a PHEV/hybrid with real fuel telemetry
+  is unaffected - covered by a new regression test confirming the Kodiaq
+  PHEV's existing `total_range` behavior is unchanged.
+
+### Investigated, not independently confirmed
+
+The same forum report also described the device shown as "Bonnet" reading
+GPS coordinates, and a charging-related device stuck on "Closed"/"Off"
+text. I could not find a separate code-level root cause for either beyond
+the device-creation bug above - `parking_gps` and `charge_type` are both
+`"text"`-mode devices that would have been caught up in the same
+fresh-install failure, which is the most likely explanation, but I can't
+confirm the exact visual symptom without the reporter's actual Domoticz
+device list (the dump only covers the API response, not what Domoticz
+rendered from it). Worth re-checking once this fix is live on a fresh
+install; if either symptom persists, the Domoticz Setup -> Devices list for
+that hardware instance would settle it.
+
 ## [0.4.4.1] - 2026-10-06
 
 Documentation-only build - no functional code changes since `0.4.4.002`; only the version string moved. All 65 tests unchanged.

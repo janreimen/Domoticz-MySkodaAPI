@@ -87,7 +87,18 @@ class DeviceManager:
     CUSTOM_KM_SUBTYPE = CUSTOM_C_SUBTYPE = 31
     CUSTOM_KM_SWITCHTYPE = CUSTOM_C_SWITCHTYPE = 0
 
-    ALERT_TYPE, ALERT_SUBTYPE, ALERT_SWITCHTYPE = 243, 19, 0
+    # Confirmed against Domoticz's own hardwaretypes.h (pTypeGeneral=0xF3=243):
+    # sTypePercentage=0x06=6, sTypeTextStatus=0x13=19, sTypeAlert=0x16=22.
+    PERCENTAGE_TYPE, PERCENTAGE_SUBTYPE, PERCENTAGE_SWITCHTYPE = 243, 6, 0
+    TEXT_TYPE, TEXT_SUBTYPE, TEXT_SWITCHTYPE = 243, 19, 0
+    # Was (243, 19, 0) - that is Domoticz's Text Status subtype (0x13), not
+    # Alert. Alert is subtype 0x16=22. This has been wrong since the 0.4.2.a
+    # refactor introduced this constant; api_key_status (unit 44, the only
+    # user of this constant) has been creating itself as a plain Text Status
+    # device this whole time, never a real color-coded Alert device. Existing
+    # installs self-heal automatically: _needs_migration() compares SubType
+    # and will now see 19 != 22 and call _migrate_in_place() on next restart.
+    ALERT_TYPE, ALERT_SUBTYPE, ALERT_SWITCHTYPE = 243, 22, 0
     SELECTOR_TYPE, SELECTOR_SUBTYPE, SELECTOR_SWITCHTYPE = 244, 62, 18
 
     SELECTOR_OPTIONS = {
@@ -188,8 +199,22 @@ class DeviceManager:
             return {"Type": self.CUSTOM_KM_TYPE, "Subtype": self.CUSTOM_KM_SUBTYPE, "Switchtype": self.CUSTOM_KM_SWITCHTYPE, "Options": self.CUSTOM_MINUTES_OPTIONS}
         if mode == "alert":
             return {"Type": self.ALERT_TYPE, "Subtype": self.ALERT_SUBTYPE, "Switchtype": self.ALERT_SWITCHTYPE}
+        if mode == "percentage":
+            return {"Type": self.PERCENTAGE_TYPE, "Subtype": self.PERCENTAGE_SUBTYPE, "Switchtype": self.PERCENTAGE_SWITCHTYPE}
+        if mode == "text":
+            return {"Type": self.TEXT_TYPE, "Subtype": self.TEXT_SUBTYPE, "Switchtype": self.TEXT_SWITCHTYPE}
         if mode.startswith("selector_"):
             return {"Type": self.SELECTOR_TYPE, "Subtype": self.SELECTOR_SUBTYPE, "Switchtype": self.SELECTOR_SWITCHTYPE, "Options": self.SELECTOR_OPTIONS[mode]}
+        # Every mode actually used in DEFINITIONS above is handled explicitly
+        # by this point. This fallback previously did `{"TypeName": mode}`,
+        # silently passing the lowercase internal mode string (e.g. "text",
+        # "percentage") as Domoticz's TypeName - which only matches Domoticz's
+        # real (capitalized) TypeName vocabulary by accident, and didn't for
+        # these two. That bug only ever bit a brand-new device Create() call,
+        # never an existing device's migrate/sync-options path, which is why
+        # it went unnoticed through every continuously-upgraded test install.
+        # Kept only as a last-resort fallback for a future mode added here
+        # without a matching branch above - deliberately NOT relied upon.
         return {"TypeName": mode}
 
     @staticmethod

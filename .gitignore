@@ -9,6 +9,7 @@ myskoda_last_state.json
 *.patch
 *.-1.*.md
 *.0.*.py
+*.bak
 .env
 .env.*
 *.secret

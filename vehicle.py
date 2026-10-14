@@ -246,6 +246,17 @@ class VehicleState:
                 default=first(fuel, "secondaryEngineRange.remainingRangeInKm", default=None),
             ))
 
+        # Confirmed via a real Elroq dump (pure BEV): the API's fuelStatus
+        # object is absent entirely for a vehicle with no combustion engine
+        # at all, so total_range above (which only looks under
+        # fuelStatus/root) never finds anything and stays None forever, even
+        # though electric_range correctly resolves. For a pure BEV, total
+        # range and electric range are the same number - only fall back when
+        # there's no fuel-side contribution at all (fuel_range is also None),
+        # so a PHEV/hybrid with real fuel telemetry is unaffected.
+        if total_range is None and fuel_range is None and electric_range is not None:
+            total_range = electric_range
+
         # Computed once and reused below: the raw (unformatted) state text,
         # or "" if no state key was found anywhere. "" is deliberately
         # distinct from a known state value - it means we have no

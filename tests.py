@@ -95,6 +95,73 @@ class VehicleParserTests(unittest.TestCase):
         self.assertEqual(state.charging_power, 0.0)
         self.assertEqual(state.remaining_charging_time, 0.0)
 
+    def test_bev_elroq_real_dump_shape(self):
+        # Regression test from a real Skoda Elroq API dump (a pure BEV, no
+        # fuelStatus object at all - reported via the Domoticz forum).
+        # Confirms battery_soc/electric_range resolve correctly (they
+        # already did - the forum report of a "missing" Battery SoC traced
+        # to the _desired_definition() fresh-install device-creation bug
+        # covered by DeviceTypeTests, not a field-extraction bug here), and
+        # that total_range now falls back to electric_range for a vehicle
+        # with no fuel-side range data at all, instead of staying None
+        # forever. doorsLocked="NO" (string, not a flat "no" value elsewhere
+        # seen) and status.overall.locked/reliableLockStatus (not used here
+        # since doorsLocked is present) are also exercised.
+        data = {"vehicle": {
+            "licensePlate": "xx-xx-xx", "name": "Elroq",
+            "odometer": {"mileageInKm": 12345},
+            "parkingPosition": {
+                "state": "PARKED",
+                "gpsCoordinates": {"latitude": 49.5, "longitude": 6.1},
+            },
+            "status": {
+                "overall": {
+                    "doorsLocked": "NO", "locked": "NO", "doors": "CLOSED",
+                    "windows": "CLOSED", "lights": "OFF", "reliableLockStatus": "UNLOCKED",
+                },
+                "detail": {"sunroof": "UNSUPPORTED", "trunk": "CLOSED", "bonnet": "CLOSED"},
+            },
+            "charging": {
+                "settings": {"preferredChargeMode": "MANUAL", "targetStateOfChargeInPercent": 80},
+                "status": {
+                    "battery": {"remainingCruisingRangeInMeters": 379000, "stateOfChargeInPercent": 75},
+                    "chargePowerInKw": 0.0,
+                    "plugConnectionState": "DISCONNECTED",
+                    "plugLockState": "UNLOCKED",
+                    "remainingTimeToFullyChargedInMinutes": 0,
+                    "state": "CONNECT_CABLE",
+                },
+            },
+            # No "fuelStatus" key at all - confirmed absent in the real dump.
+        }}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.battery_soc, 75.0)
+        self.assertEqual(state.electric_range, 379.0)
+        self.assertIsNone(state.fuel_range)
+        self.assertEqual(state.total_range, 379.0)
+        self.assertFalse(state.doors_locked)
+        self.assertEqual(state.bonnet, "CLOSED")
+        self.assertFalse(state.charging_connected)
+        self.assertFalse(state.plug_lock_state)
+        self.assertEqual(state.charging_state, "CONNECT_CABLE")
+        self.assertEqual(state.charge_mode, "MANUAL")
+
+    def test_phev_total_range_fallback_does_not_override_real_value(self):
+        # The BEV total_range fallback must only fire when there is no
+        # fuel-side contribution at all. A PHEV/hybrid with real fuelStatus
+        # totalRangeInKm must keep using that value, not electric_range alone.
+        data = {"vehicle": {
+            "charging": {"status": {"battery": {"remainingCruisingRangeInMeters": 33000, "stateOfChargeInPercent": 31}}},
+            "fuelStatus": {
+                "totalRangeInKm": 683,
+                "primaryEngineRange": {"engineType": "GASOLINE", "remainingRangeInKm": 650},
+            },
+        }}
+        state = VehicleState.from_api(data)
+        self.assertEqual(state.fuel_range, 650.0)
+        self.assertEqual(state.electric_range, 33.0)
+        self.assertEqual(state.total_range, 683.0)
+
     def test_phev_ready_for_charging_resets_remaining_time(self):
         # Issue #9: third real dump from the same plug-in-hybrid Kodiaq,
         # captured right after a charge session ended. state is
@@ -288,6 +355,41 @@ class DeviceTypeTests(unittest.TestCase):
         self.assertEqual(DeviceManager.CUSTOM_KM_TYPE, 243)
         self.assertEqual(DeviceManager.CUSTOM_KM_SUBTYPE, 31)
         self.assertEqual(DeviceManager.CUSTOM_KM_SWITCHTYPE, 0)
+
+    def test_percentage_and_text_use_real_domoticz_subtypes(self):
+        # Regression test for a fresh-install-only bug: _desired_definition()
+        # had no branch for mode "percentage" or "text", so both fell
+        # through to {"TypeName": mode} - the lowercase internal mode string,
+        # not a real Domoticz TypeName. Confirmed against Domoticz's own
+        # hardwaretypes.h (pTypeGeneral=0xF3=243): sTypePercentage=0x06=6,
+        # sTypeTextStatus=0x13=19. Only ever hit a brand-new device's
+        # Create() call (never an existing device's migrate/sync-options
+        # path), which is why it never surfaced on a continuously-upgraded
+        # install - only on a genuinely fresh one.
+        dm = DeviceManager(logger=None, domoticz_devices={})
+        percentage = dm._desired_definition("percentage")
+        self.assertEqual(percentage["Type"], 243)
+        self.assertEqual(percentage["Subtype"], 6)
+        self.assertEqual(percentage["Switchtype"], 0)
+        self.assertNotIn("TypeName", percentage)
+
+        text = dm._desired_definition("text")
+        self.assertEqual(text["Type"], 243)
+        self.assertEqual(text["Subtype"], 19)
+        self.assertEqual(text["Switchtype"], 0)
+        self.assertNotIn("TypeName", text)
+
+    def test_alert_uses_real_domoticz_alert_subtype(self):
+        # Regression test: ALERT_SUBTYPE was 19 (Domoticz's Text Status
+        # subtype, sTypeTextStatus=0x13), not 22 (the real sTypeAlert=0x16),
+        # since the 0.4.2.a refactor. api_key_status (unit 44) was creating
+        # itself as a plain Text Status device, never a color-coded Alert
+        # device. Existing installs self-heal via _migrate_in_place() once
+        # _needs_migration() sees the corrected SubType differ from 19.
+        self.assertEqual(DeviceManager.ALERT_TYPE, 243)
+        self.assertEqual(DeviceManager.ALERT_SUBTYPE, 22)
+        self.assertEqual(DeviceManager.ALERT_SWITCHTYPE, 0)
+        self.assertNotEqual(DeviceManager.ALERT_SUBTYPE, DeviceManager.TEXT_SUBTYPE)
 
 
 
