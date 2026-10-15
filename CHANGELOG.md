@@ -13,12 +13,12 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
-## [0.4.4.2] - draft, not yet tagged/released
+## [0.4.4.2] - 2026-10-15
 
-Two confirmed bug fixes, both traced to real end-user reports on a Skoda
+Three confirmed bug fixes, uncovered through real end-user reports on a Skoda
 Elroq (a pure BEV) via the Domoticz forum, and verified against a real API
 response dump from that vehicle plus Domoticz's own source
-(`hardwaretypes.h`). 69 tests (65 existing + 4 new), all passing.
+(`hardwaretypes.h`). 69 tests (65 existing + 4 new).
 
 ### Fixed
 

@@ -16,7 +16,7 @@ body:
     attributes:
       label: Plugin version
       description: The exact version shown by your installation.
-      placeholder: "e.g. 0.4.4.002"
+      placeholder: "e.g. 0.4.4.2"
     validations:
       required: true
 

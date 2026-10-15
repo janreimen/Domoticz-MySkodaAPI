@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.4.1**
+**Version 0.4.4.2**
 
 A Domoticz Python plugin for the official Škoda MySkoda Public API: vehicle telemetry is always read-only, plus three optional, off-by-default remote commands.
 
@@ -41,9 +41,11 @@ The plugin talks to the same `vehicles/{vin}` MySkoda Public API endpoint for ev
 | Octavia 4 Facelift | NX | In development |
 | Kodiaq II PHEV | PS | In development |
 | Karoq Sportline 2.0 TFSI 140kW (MY2020) | NU | In development |
+| Elroq (pure BEV) | — | In development |
 
 - **Checked** — confirmed against a real captured API response for that model/powertrain.
 - **In development** — plugin is expected to work, but the raw API shape for this specific model/powertrain hasn't been confirmed yet; if you hit missing/zero values, please open an issue with a raw `charging`/`fuelStatus` dump (see [`verify_charging_fields.py`](./verify_charging_fields.py)).
+- **Elroq (pure BEV)** — the fixes in 0.4.4.2 were verified against a real API response dump from a tester, but not yet on a live fresh install; see [issue #12](https://github.com/janreimen/Domoticz-MySkodaAPI/issues/12).
 
 ### Known-compatible models (not yet tried with this plugin)
 
@@ -52,7 +54,6 @@ The plugin talks to the same `vehicles/{vin}` MySkoda Public API endpoint for ev
 | Model | Code | Source |
 |---|---|---|
 | Enyaq / Enyaq Coupé | — | Škoda MyŠkoda app description |
-| Elroq | — | Škoda MyŠkoda app description; confirmed at launch (Dec 2024 press release) |
 | Scala | — | Škoda MyŠkoda app description |
 | Kamiq | — | Škoda MyŠkoda app description |
 | Fabia (4th generation) | — | Škoda MyŠkoda app description |
@@ -307,15 +308,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.4.1"
-git tag -a 0.4.4.1 -m "Release 0.4.4.1"
+git commit -m "Release 0.4.4.2"
+git tag -a 0.4.4.2 -m "Release 0.4.4.2"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.4.1
+git push origin 0.4.4.2
 ```
 
 Do not assume the branch is `master` or `main`; check with:

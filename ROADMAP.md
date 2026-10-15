@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.4.1 — Released**.
+The project is currently at **0.4.4.2 — Released**.
 
 The roadmap deliberately separates:
 
@@ -15,9 +15,13 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.4.1
+# Current State — 0.4.4.2
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
+
+## 0.4.4.2 - Elroq (pure BEV) fixes and logging levels
+
+Bugfix release driven by reports from an Elroq (pure BEV) tester (issue #12). Fixes device creation on a brand-new install for percentage and text devices (Battery SoC among them), makes API Key Status (unit 44) a real Alert device (existing installs migrate on restart), and lets Total Range fall back to the electric range on pure BEVs. The Debug hardware setting gains a fourth level. See `CHANGELOG.md`.
 
 ## 0.4.4.1 - Known command support by vehicle (docs only)
 
