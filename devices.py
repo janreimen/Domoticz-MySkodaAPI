@@ -108,7 +108,7 @@ class DeviceManager:
         "selector_vehicle_state": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Parked|Moving|Other"},
         "selector_security": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Secure|Attention"},
         "selector_climate": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Off|Heating|Cooling|Ventilation|Climate"},
-        "selector_charging": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Not Charging|Charging|Complete|Scheduled|Error"},
+        "selector_charging": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Not Charging|Charging|Complete|Scheduled|Error|Conserving|Discharging|Interrupted"},
         "selector_connected": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Disconnected|Connected"},
         "selector_charge_mode": {"SelectorStyle": "0", "LevelOffHidden": "false", "LevelNames": "Unknown|Immediate|Scheduled|Manual|Other"},
     }
@@ -121,6 +121,22 @@ class DeviceManager:
         "NOT_CHARGING": 10, "COMPLETE": 30, "COMPLETED": 30, "SCHEDULED": 40,
         "ERROR": 50, "DISCONNECTED": 10, "CONNECTED": 20, "IMMEDIATE": 10,
         "MANUAL": 30,
+    }
+
+    # Per-selector overrides for the real MyŠkoda API enum values. Levels are
+    # positions in that selector's LevelNames (steps of 10). Existing level
+    # numbers are unchanged; new labels are appended at the end.
+    SELECTOR_LEVEL_OVERRIDES = {
+        "charging_state": {
+            "NOT_READY_FOR_CHARGING": 10, "CONNECT_CABLE": 10, "READY_FOR_CHARGING": 10,
+            "CHARGING": 20, "CONSERVING": 60, "DISCHARGING": 70, "CHARGING_INTERRUPTED": 80,
+        },
+        "charge_mode": {
+            "IMMEDIATE": 10, "TIMER": 20, "TIMER_CHARGING_WITH_CLIMATISATION": 20,
+            "PREFERRED_CHARGING_TIMES": 20, "SCHEDULED": 20, "MANUAL": 30,
+            "ONLY_OWN_CURRENT": 40, "IMMEDIATE_DISCHARGING": 40, "HOME_STORAGE_CHARGING": 40,
+            "OTHER": 40,
+        },
     }
 
     _SELECTOR_MODE_BY_KEY = {k: m for k, _n, _t, m in DEFINITIONS if m.startswith("selector_")}
@@ -302,7 +318,9 @@ class DeviceManager:
 
     def _update_selector(self, key, value):
         mode = self._SELECTOR_MODE_BY_KEY[key]
-        level = self.SELECTOR_LEVELS.get(safe_str(value, "UNKNOWN").strip().upper(), 0)
+        norm = safe_str(value, "UNKNOWN").strip().upper()
+        override = self.SELECTOR_LEVEL_OVERRIDES.get(key, {})
+        level = override[norm] if norm in override else self.SELECTOR_LEVELS.get(norm, 0)
         self._update(key, level, str(level), Options=self.SELECTOR_OPTIONS[mode])
 
     @staticmethod

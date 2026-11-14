@@ -567,6 +567,135 @@ class NativeStateSensorTests(unittest.TestCase):
             self.assertIn(level, (0, 10, 20), "level {} for {!r} is out of selector_on_off's range".format(level, text))
 
 
+class SelectorMappingTests(unittest.TestCase):
+    CHARGING = ["NOT_READY_FOR_CHARGING", "CONNECT_CABLE", "READY_FOR_CHARGING", "CHARGING",
+                "CONSERVING", "DISCHARGING", "CHARGING_INTERRUPTED"]
+    MODES = ["MANUAL", "TIMER", "TIMER_CHARGING_WITH_CLIMATISATION", "PREFERRED_CHARGING_TIMES",
+             "ONLY_OWN_CURRENT", "IMMEDIATE_DISCHARGING", "HOME_STORAGE_CHARGING"]
+
+    def _level(self, key, value):
+        from unittest.mock import MagicMock
+        m = DeviceManager(MagicMock(), {})
+        m._update = MagicMock()
+        m._update_selector(key, value)
+        return m._update.call_args[0][1]
+
+    def _names(self, key):
+        mode = DeviceManager._SELECTOR_MODE_BY_KEY[key]
+        return DeviceManager.SELECTOR_OPTIONS[mode]["LevelNames"].split("|")
+
+    def test_every_charging_state_maps_to_a_label(self):
+        names = self._names("charging_state")
+        for v in self.CHARGING:
+            lvl = self._level("charging_state", v)
+            self.assertNotEqual(lvl, 0, v)
+            self.assertLess(lvl // 10, len(names), v)
+
+    def test_every_charge_mode_maps_to_a_label(self):
+        names = self._names("charge_mode")
+        for v in self.MODES:
+            lvl = self._level("charge_mode", v)
+            self.assertNotEqual(lvl, 0, v)
+            self.assertLess(lvl // 10, len(names), v)
+
+    def test_specific_labels(self):
+        n = self._names("charging_state")
+        self.assertEqual(n[self._level("charging_state", "CHARGING") // 10], "Charging")
+        self.assertEqual(n[self._level("charging_state", "CONNECT_CABLE") // 10], "Not Charging")
+        self.assertEqual(n[self._level("charging_state", "CONSERVING") // 10], "Conserving")
+        c = self._names("charge_mode")
+        self.assertEqual(c[self._level("charge_mode", "TIMER") // 10], "Scheduled")
+        self.assertEqual(c[self._level("charge_mode", "MANUAL") // 10], "Manual")
+        self.assertEqual(c[self._level("charge_mode", "ONLY_OWN_CURRENT") // 10], "Other")
+
+    def test_unknown_value_is_level_zero(self):
+        self.assertEqual(self._level("charging_state", "SOMETHING_NEW"), 0)
+
+
+class RetryPolicyTests(unittest.TestCase):
+    @staticmethod
+    def _run(status, retry_after=None):
+        import io, urllib.error
+        from unittest.mock import patch
+        from myskoda_api import MySkodaAPI
+        calls = []
+
+        def fake_urlopen(request, timeout=None):
+            calls.append(1)
+            hdrs = {"Retry-After": str(retry_after)} if retry_after is not None else {}
+            raise urllib.error.HTTPError(request.full_url, status, "err", hdrs, io.BytesIO(b"{}"))
+
+        sleeps = []
+        api = MySkodaAPI("testkey", "TESTVIN123")
+        with patch("urllib.request.urlopen", fake_urlopen), patch("time.sleep", sleeps.append):
+            result = api.fetch_vehicle()
+        return result, len(calls), sleeps
+
+    def test_429_is_never_retried_inline(self):
+        result, calls, sleeps = self._run(429, 3600)
+        self.assertEqual((calls, sleeps), (1, []))
+        self.assertEqual(result.status, 429)
+        self.assertEqual(result.retry_after, 3600)
+
+    def test_429_without_retry_after_not_retried(self):
+        _r, calls, sleeps = self._run(429)
+        self.assertEqual((calls, sleeps), (1, []))
+
+    def test_503_with_huge_retry_after_returns_immediately(self):
+        result, calls, sleeps = self._run(503, 3600)
+        self.assertEqual((calls, sleeps), (1, []))
+        self.assertEqual(result.retry_after, 3600)
+
+    def test_503_with_small_retry_after_still_retries(self):
+        _r, calls, sleeps = self._run(503, 5)
+        self.assertEqual(calls, 4)
+        self.assertEqual(sleeps, [5, 5, 5])
+
+    def test_500_uses_capped_backoff(self):
+        _r, calls, sleeps = self._run(500)
+        self.assertEqual(calls, 4)
+        self.assertTrue(all(d <= 60 for d in sleeps))
+
+
+class OperationsIncludeTests(unittest.TestCase):
+    def _api_with(self, responses):
+        import io, urllib.error
+        from unittest.mock import MagicMock, patch
+        from myskoda_api import MySkodaAPI
+        urls = []
+
+        def fake(request, timeout=None):
+            urls.append(request.full_url)
+            code = responses[min(len(urls), len(responses)) - 1]
+            if code != 200:
+                raise urllib.error.HTTPError(request.full_url, code, "e", {}, io.BytesIO(b"{}"))
+            r = MagicMock(); r.status = 200; r.headers = {}
+            r.read.return_value = b"{}"
+            r.__enter__.return_value = r; r.__exit__.return_value = False
+            return r
+
+        api = MySkodaAPI("k", "VIN1")
+        with patch("urllib.request.urlopen", fake), patch("time.sleep"):
+            first = api.fetch_vehicle()
+            api.fetch_vehicle()
+        return api, first, urls
+
+    def test_operations_requested_by_default(self):
+        _a, first, urls = self._api_with([200])
+        self.assertTrue(first.ok)
+        self.assertIn("operations", urls[0])
+        self.assertNotIn("chargingProfiles", urls[0])
+
+    def test_400_falls_back_once_and_is_remembered(self):
+        api, first, urls = self._api_with([400, 200, 200])
+        self.assertTrue(first.ok)
+        self.assertEqual(len(urls), 3)
+        self.assertIn("operations", urls[0])
+        self.assertNotIn("operations", urls[1])
+        self.assertNotIn("operations", urls[2])
+        self.assertFalse(api.include_optional)
+
+
 class DerivedTelemetryTests(unittest.TestCase):
     def test_api_status_mapping(self):
         from myskoda_api import APIResult

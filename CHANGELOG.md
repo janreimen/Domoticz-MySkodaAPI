@@ -13,6 +13,20 @@ The project follows [Semantic Versioning](https://semver.org/) where practical.
 
 # Release History
 
+## [0.4.4.3] - DRAFT (not tagged, not released)
+
+### Fixed
+- **Charging state and charge mode selectors showed "Unknown"** for most real API values. All MyŠkoda enum values (CONNECT_CABLE, READY_FOR_CHARGING, CONSERVING, DISCHARGING, CHARGING_INTERRUPTED; MANUAL, TIMER, TIMER_CHARGING_WITH_CLIMATISATION, PREFERRED_CHARGING_TIMES, ONLY_OWN_CURRENT, IMMEDIATE_DISCHARGING, HOME_STORAGE_CHARGING) now map to a label. Charge-mode "Scheduled"/"Other" were previously swapped. New labels Conserving/Discharging/Interrupted were appended to the charging selector; existing level numbers are unchanged.
+- **Retry handling could block Domoticz for hours.** HTTP 429 is no longer retried inline (the plugin's own scheduler honours `Retry-After`), and inline retries for 500/502/503/504 are skipped when `Retry-After` exceeds 60 s. Each inline retry also used API quota.
+
+### Changed
+- `operations` is now requested in `include` so "Supported Operations" can be populated. If the API answers HTTP 400, the plugin retries once without it and remembers that until restart.
+
+### Tests
+- 80 tests (was 69); the one known failing test (restore-log message) is a pre-existing regression, not addressed here.
+
+---
+
 ## [0.4.4.2] - 2026-10-15
 
 Three confirmed bug fixes, uncovered through real end-user reports on a Skoda

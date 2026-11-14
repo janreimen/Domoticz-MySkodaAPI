@@ -1,4 +1,4 @@
-PLUGIN_VERSION = "0.4.4.2"
+PLUGIN_VERSION = "0.4.4.3"
 PLUGIN_KEY = "MySkodaAPI"
 PLUGIN_NAME = "MySkoda API Integration"
 PLUGIN_URL = "https://github.com/janreimen/Domoticz-MySkodaAPI"
@@ -16,6 +16,8 @@ API_INCLUDE = [
     "info", "status", "fuelStatus", "odometer", "parkingPosition",
     "airConditioning", "auxiliaryHeating", "activeVentilation", "charging",
 ]
+# Requested in addition when the API accepts it; dropped automatically after an HTTP 400.
+API_INCLUDE_OPTIONAL = ["operations"]
 
 # Existing unit IDs are intentionally preserved for upgrade compatibility.
 UNITS = {
@@ -95,6 +97,11 @@ RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 MAX_RETRIES = 3
 INITIAL_BACKOFF = 2.0
 MAX_BACKOFF = 60.0
+# Inline (blocking) retries only for transient server errors. 429 is never
+# retried inline: it is handed back with retry_after and scheduled by the plugin.
+INLINE_RETRY_STATUS = {500, 502, 503, 504}
+# Never block the Domoticz plugin thread longer than this on a Retry-After.
+MAX_INLINE_RETRY_AFTER = 60.0
 
 STATE_CACHE_FILENAME = "myskoda_last_state.json"
 DISTANCE_STATE_FILENAME = "myskoda_distance_state.json"

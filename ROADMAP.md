@@ -2,7 +2,7 @@
 
 The roadmap describes the intended future development of **Domoticz-MySkodaAPI**.
 
-The project is currently at **0.4.4.2 — Released**.
+The project is currently at **0.4.4.3 — Development draft (not yet released)**.
 
 The roadmap deliberately separates:
 
@@ -15,7 +15,7 @@ Features are **not considered implemented** until they are released in a version
 
 ---
 
-# Current State — 0.4.4.2
+# Current State — 0.4.4.3
 
 Changed Device Type for units 24 and 25 : custom Meter instead of Counting Meter (RFX Meter)
 

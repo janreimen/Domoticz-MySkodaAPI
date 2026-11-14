@@ -8,8 +8,9 @@ from constants import (
     ACTIVE_VENTILATION_START_ENDPOINT, ACTIVE_VENTILATION_STOP_ENDPOINT,
     AIR_CONDITIONING_START_ENDPOINT, AIR_CONDITIONING_STOP_ENDPOINT,
     AUXILIARY_HEATING_START_ENDPOINT, AUXILIARY_HEATING_STOP_ENDPOINT,
-    API_BASE, API_INCLUDE, API_TIMEOUT, INITIAL_BACKOFF, MAX_BACKOFF,
-    MAX_RETRIES, RETRYABLE_STATUS, USER_AGENT, VEHICLE_ENDPOINT,
+    API_BASE, API_INCLUDE, API_INCLUDE_OPTIONAL, API_TIMEOUT, INITIAL_BACKOFF, INLINE_RETRY_STATUS,
+    MAX_BACKOFF, MAX_INLINE_RETRY_AFTER,
+    MAX_RETRIES, USER_AGENT, VEHICLE_ENDPOINT,
 )
 
 
@@ -79,6 +80,7 @@ class MySkodaAPI:
         self.logger = logger
         self.timeout = timeout
         self.last_result = None
+        self.include_optional = True
 
     def _log_debug(self, message):
         if self.logger:
@@ -87,8 +89,10 @@ class MySkodaAPI:
             except Exception:
                 pass
 
-    def _url(self):
-        query = urllib.parse.urlencode({"include": ",".join(API_INCLUDE)})
+    def _url(self, include=None):
+        if include is None:
+            include = list(API_INCLUDE) + (list(API_INCLUDE_OPTIONAL) if self.include_optional else [])
+        query = urllib.parse.urlencode({"include": ",".join(include)})
         return API_BASE + VEHICLE_ENDPOINT.format(vin=urllib.parse.quote(self.vin, safe="")) + "?" + query
 
     def _build_url(self, path_template, query=None):
@@ -132,7 +136,14 @@ class MySkodaAPI:
         return "", "", ""
 
     def fetch_vehicle(self):
-        return self._request("GET", self._url())
+        result = self._request("GET", self._url())
+        if result.status == 400 and self.include_optional:
+            # The API may reject optional include values; remember and retry once without them.
+            self.include_optional = False
+            self._log_debug("HTTP 400 with optional include values - retrying without {}".format(
+                ",".join(API_INCLUDE_OPTIONAL)))
+            result = self._request("GET", self._url())
+        return result
 
     def start_air_conditioning(self, target_temperature_celsius=None):
         """Start remote air conditioning (StartAirConditioningConfiguration).
@@ -251,7 +262,8 @@ class MySkodaAPI:
                     body = ""
                 problem_type, problem_title, problem_detail = self._problem_fields(body)
 
-                if status in RETRYABLE_STATUS and attempt <= MAX_RETRIES:
+                if (status in INLINE_RETRY_STATUS and attempt <= MAX_RETRIES
+                        and (retry_after is None or retry_after <= MAX_INLINE_RETRY_AFTER)):
                     delay = retry_after if retry_after is not None else min(backoff, MAX_BACKOFF)
                     self._log_debug(
                         "MySkoda API HTTP {} - retry {}/{} in {:.1f}s".format(

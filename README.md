@@ -1,6 +1,6 @@
 MySkoda API Integration for Domoticz
 
-**Version 0.4.4.2**
+**Version 0.4.4.3**
 
 A Domoticz Python plugin for the official Škoda MySkoda Public API: vehicle telemetry is always read-only, plus three optional, off-by-default remote commands.
 
@@ -308,15 +308,15 @@ Before publishing a release:
 git status --short --ignored
 git add .
 git status
-git commit -m "Release 0.4.4.2"
-git tag -a 0.4.4.2 -m "Release 0.4.4.2"
+git commit -m "Release 0.4.4.3"
+git tag -a 0.4.4.3 -m "Release 0.4.4.2"
 ```
 
 Then push the actual repository branch and tag:
 
 ```bash
 git push origin <branch>
-git push origin 0.4.4.2
+git push origin 0.4.4.3
 ```
 
 Do not assume the branch is `master` or `main`; check with:

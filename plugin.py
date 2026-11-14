@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.4.2" externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
+<plugin key="MySkodaAPI" name="MySkoda API Integration" author="Jan Reimen" version="0.4.4.3" externallink="https://github.com/janreimen/Domoticz-MySkodaAPI">
   <description>
     <h2>MySkoda API Integration</h2><br/>
     Integration with the official Škoda MySkoda Public API: telemetry is
